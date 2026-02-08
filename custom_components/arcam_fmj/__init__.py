@@ -37,7 +37,13 @@ type ArcamFmjConfigEntry = ConfigEntry[ArcamFmjData]
 _LOGGER = logging.getLogger(__name__)
 
 
-PLATFORMS = [Platform.MEDIA_PLAYER, Platform.NUMBER, Platform.SELECT, Platform.SWITCH]
+PLATFORMS = [
+    Platform.MEDIA_PLAYER,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ArcamFmjConfigEntry) -> bool:

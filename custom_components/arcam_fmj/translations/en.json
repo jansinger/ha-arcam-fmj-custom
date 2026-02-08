@@ -1,12 +1,12 @@
 {
   "config": {
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
-      "already_in_progress": "[%key:common::config_flow::abort::already_in_progress%]",
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+      "already_configured": "Device is already configured",
+      "already_in_progress": "Configuration flow is already in progress",
+      "cannot_connect": "Failed to connect"
     },
     "error": {
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+      "cannot_connect": "Failed to connect"
     },
     "flow_title": "{host}",
     "step": {
@@ -15,8 +15,8 @@
       },
       "user": {
         "data": {
-          "host": "[%key:common::config_flow::data::host%]",
-          "port": "[%key:common::config_flow::data::port%]"
+          "host": "Host",
+          "port": "Port"
         },
         "description": "Please enter the host name or IP address of device."
       }

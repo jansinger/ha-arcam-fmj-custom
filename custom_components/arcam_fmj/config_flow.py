@@ -31,24 +31,21 @@ class ArcamFmjFlowHandler(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(uuid)
         self._abort_if_unique_id_configured({CONF_HOST: host, CONF_PORT: port})
 
-    async def _async_check_and_create(self, host: str, port: int) -> ConfigFlowResult:
+    async def _async_try_connect(self, host: str, port: int) -> bool:
+        """Test connection to device. Returns True on success."""
         client = Client(host, port)
         try:
             await client.start()
         except ConnectionFailed:
-            return self.async_abort(reason="cannot_connect")
+            return False
         finally:
             await client.stop()
-
-        return self.async_create_entry(
-            title=f"{DEFAULT_NAME} ({host})",
-            data={CONF_HOST: host, CONF_PORT: port},
-        )
+        return True
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle a discovered device."""
+        """Handle a user-initiated config flow."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -60,9 +57,18 @@ class ArcamFmjFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input[CONF_HOST], user_input[CONF_PORT], uuid
                 )
 
-            return await self._async_check_and_create(
+            if await self._async_try_connect(
                 user_input[CONF_HOST], user_input[CONF_PORT]
-            )
+            ):
+                return self.async_create_entry(
+                    title=f"{DEFAULT_NAME} ({user_input[CONF_HOST]})",
+                    data={
+                        CONF_HOST: user_input[CONF_HOST],
+                        CONF_PORT: user_input[CONF_PORT],
+                    },
+                )
+
+            errors["base"] = "cannot_connect"
 
         fields = {
             vol.Required(CONF_HOST): str,
@@ -81,7 +87,12 @@ class ArcamFmjFlowHandler(ConfigFlow, domain=DOMAIN):
         self.context["title_placeholders"] = placeholders
 
         if user_input is not None:
-            return await self._async_check_and_create(self.host, self.port)
+            if await self._async_try_connect(self.host, self.port):
+                return self.async_create_entry(
+                    title=f"{DEFAULT_NAME} ({self.host})",
+                    data={CONF_HOST: self.host, CONF_PORT: self.port},
+                )
+            return self.async_abort(reason="cannot_connect")
 
         return self.async_show_form(
             step_id="confirm", description_placeholders=placeholders

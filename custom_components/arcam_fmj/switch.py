@@ -2,27 +2,19 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from arcam.fmj import ConnectionFailed
+from arcam.fmj.state import State
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ArcamFmjConfigEntry
-from .const import (
-    DOMAIN,
-    SIGNAL_CLIENT_DATA,
-    SIGNAL_CLIENT_STARTED,
-    SIGNAL_CLIENT_STOPPED,
-)
-
-_LOGGER = logging.getLogger(__name__)
+from .entity import ArcamFmjEntity
 
 
 async def async_setup_entry(
@@ -45,14 +37,11 @@ async def async_setup_entry(
     )
 
 
-class ArcamRoomEqSwitch(SwitchEntity):
+class ArcamRoomEqSwitch(ArcamFmjEntity, SwitchEntity):
     """Representation of the Arcam Room EQ switch."""
 
-    _attr_should_poll = False
-    _attr_has_entity_name = True
-    _attr_available = False
-    _attr_name = "Room EQ"
     _attr_translation_key = "room_eq"
+    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(
         self,
@@ -61,17 +50,8 @@ class ArcamRoomEqSwitch(SwitchEntity):
         uuid: str,
     ) -> None:
         """Initialize the switch entity."""
-        self._state = state
+        super().__init__(device_name, state, uuid)
         self._attr_unique_id = f"{uuid}-{state.zn}-room_eq"
-        self._attr_entity_registry_enabled_default = state.zn == 1
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, uuid)},
-            manufacturer="Arcam",
-            model=state.model or "Arcam FMJ AVR",
-            name=device_name,
-        )
-        if state.zn != 1:
-            self._attr_name = f"Room EQ Zone {state.zn}"
 
     @property
     def is_on(self) -> bool | None:
@@ -97,42 +77,3 @@ class ArcamRoomEqSwitch(SwitchEntity):
                 "Connection failed during room_eq"
             ) from exception
         self.async_write_ha_state()
-
-    async def async_added_to_hass(self) -> None:
-        """Register callbacks."""
-        if self._state.client.connected:
-            self._attr_available = True
-
-        @callback
-        def _data(host: str) -> None:
-            if host == self._state.client.host:
-                self.async_write_ha_state()
-
-        @callback
-        def _started(host: str) -> None:
-            if host == self._state.client.host:
-                self._attr_available = True
-                self.async_write_ha_state()
-
-        @callback
-        def _stopped(host: str) -> None:
-            if host == self._state.client.host:
-                self._attr_available = False
-                self.async_write_ha_state()
-
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_DATA, _data)
-        )
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_STARTED, _started)
-        )
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_STOPPED, _stopped)
-        )
-
-    async def async_update(self) -> None:
-        """Force update of state."""
-        try:
-            await self._state.update()
-        except ConnectionFailed:
-            _LOGGER.debug("Connection lost during update")

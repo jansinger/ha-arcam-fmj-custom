@@ -11,19 +11,13 @@ from arcam.fmj import ConnectionFailed
 from arcam.fmj.state import State
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ArcamFmjConfigEntry
-from .const import (
-    DOMAIN,
-    SIGNAL_CLIENT_DATA,
-    SIGNAL_CLIENT_STARTED,
-    SIGNAL_CLIENT_STOPPED,
-)
+from .entity import ArcamFmjEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +37,7 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="bass",
         translation_key="bass",
-        name="Bass",
+        entity_category=EntityCategory.CONFIG,
         native_min_value=-14,
         native_max_value=14,
         native_step=1,
@@ -54,7 +48,7 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="treble",
         translation_key="treble",
-        name="Treble",
+        entity_category=EntityCategory.CONFIG,
         native_min_value=-14,
         native_max_value=14,
         native_step=1,
@@ -65,7 +59,7 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="balance",
         translation_key="balance",
-        name="Balance",
+        entity_category=EntityCategory.CONFIG,
         native_min_value=-13,
         native_max_value=13,
         native_step=1,
@@ -76,7 +70,8 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="subwoofer_trim",
         translation_key="subwoofer_trim",
-        name="Subwoofer Trim",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
         native_min_value=-14,
         native_max_value=14,
         native_step=1,
@@ -88,7 +83,8 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="lipsync_delay",
         translation_key="lipsync_delay",
-        name="Lip Sync Delay",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
         native_min_value=0,
         native_max_value=200,
         native_step=5,
@@ -118,12 +114,9 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class ArcamNumberEntity(NumberEntity):
+class ArcamNumberEntity(ArcamFmjEntity, NumberEntity):
     """Representation of an Arcam number control."""
 
-    _attr_should_poll = False
-    _attr_has_entity_name = True
-    _attr_available = False
     entity_description: ArcamNumberEntityDescription
 
     def __init__(
@@ -134,18 +127,9 @@ class ArcamNumberEntity(NumberEntity):
         description: ArcamNumberEntityDescription,
     ) -> None:
         """Initialize the number entity."""
-        self._state = state
+        super().__init__(device_name, state, uuid)
         self.entity_description = description
         self._attr_unique_id = f"{uuid}-{state.zn}-{description.key}"
-        self._attr_entity_registry_enabled_default = state.zn == 1
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, uuid)},
-            manufacturer="Arcam",
-            model=state.model or "Arcam FMJ AVR",
-            name=device_name,
-        )
-        if state.zn != 1:
-            self._attr_name = f"{description.name} Zone {state.zn}"
 
     @property
     def native_value(self) -> float | None:
@@ -165,42 +149,3 @@ class ArcamNumberEntity(NumberEntity):
                 f"Connection failed during {self.entity_description.key}"
             ) from exception
         self.async_write_ha_state()
-
-    async def async_added_to_hass(self) -> None:
-        """Register callbacks."""
-        if self._state.client.connected:
-            self._attr_available = True
-
-        @callback
-        def _data(host: str) -> None:
-            if host == self._state.client.host:
-                self.async_write_ha_state()
-
-        @callback
-        def _started(host: str) -> None:
-            if host == self._state.client.host:
-                self._attr_available = True
-                self.async_write_ha_state()
-
-        @callback
-        def _stopped(host: str) -> None:
-            if host == self._state.client.host:
-                self._attr_available = False
-                self.async_write_ha_state()
-
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_DATA, _data)
-        )
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_STARTED, _started)
-        )
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_STOPPED, _stopped)
-        )
-
-    async def async_update(self) -> None:
-        """Force update of state."""
-        try:
-            await self._state.update()
-        except ConnectionFailed:
-            _LOGGER.debug("Connection lost during update")

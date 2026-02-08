@@ -8,31 +8,26 @@ import logging
 from typing import Any
 
 from arcam.fmj import ConnectionFailed, SourceCodes
+from arcam.fmj.state import State
 
 from homeassistant.components.media_player import (
     BrowseError,
     BrowseMedia,
     MediaClass,
+    MediaPlayerDeviceClass,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
 )
 from homeassistant.const import ATTR_ENTITY_ID
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ArcamFmjConfigEntry
-from .const import (
-    DOMAIN,
-    EVENT_TURN_ON,
-    SIGNAL_CLIENT_DATA,
-    SIGNAL_CLIENT_STARTED,
-    SIGNAL_CLIENT_STOPPED,
-)
+from .const import EVENT_TURN_ON
+from .entity import ArcamFmjEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,12 +66,10 @@ def convert_exception[**_P, _R](
     return _convert_exception
 
 
-class ArcamFmj(MediaPlayerEntity):
+class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
     """Representation of a media device."""
 
-    _attr_should_poll = False
-    _attr_has_entity_name = True
-    _attr_available = False
+    _attr_device_class = MediaPlayerDeviceClass.RECEIVER
 
     def __init__(
         self,
@@ -85,7 +78,7 @@ class ArcamFmj(MediaPlayerEntity):
         uuid: str,
     ) -> None:
         """Initialize device."""
-        self._state = state
+        super().__init__(device_name, state, uuid)
         self._attr_name = f"Zone {state.zn}"
         self._attr_supported_features = (
             MediaPlayerEntityFeature.SELECT_SOURCE
@@ -101,14 +94,6 @@ class ArcamFmj(MediaPlayerEntity):
             self._attr_supported_features |= MediaPlayerEntityFeature.SELECT_SOUND_MODE
         self._attr_unique_id = f"{uuid}-{state.zn}"
         self._attr_entity_registry_enabled_default = state.zn == 1
-        self._attr_device_info = DeviceInfo(
-            identifiers={
-                (DOMAIN, uuid),
-            },
-            manufacturer="Arcam",
-            model=state.model or "Arcam FMJ AVR",
-            name=device_name,
-        )
 
     @property
     def state(self) -> MediaPlayerState:
@@ -116,48 +101,6 @@ class ArcamFmj(MediaPlayerEntity):
         if self._state.get_power() is True:
             return MediaPlayerState.ON
         return MediaPlayerState.OFF
-
-    async def async_added_to_hass(self) -> None:
-        """Once registered, add listener for events."""
-        if self._state.client.connected:
-            self._attr_available = True
-
-        @callback
-        def _data(host: str) -> None:
-            if host == self._state.client.host:
-                self.async_write_ha_state()
-
-        @callback
-        def _started(host: str) -> None:
-            if host == self._state.client.host:
-                self._attr_available = True
-                self.async_schedule_update_ha_state(force_refresh=True)
-
-        @callback
-        def _stopped(host: str) -> None:
-            if host == self._state.client.host:
-                self._attr_available = False
-                self.async_write_ha_state()
-
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_DATA, _data)
-        )
-
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_STARTED, _started)
-        )
-
-        self.async_on_remove(
-            async_dispatcher_connect(self.hass, SIGNAL_CLIENT_STOPPED, _stopped)
-        )
-
-    async def async_update(self) -> None:
-        """Force update of state."""
-        _LOGGER.debug("Update state %s", self.name)
-        try:
-            await self._state.update()
-        except ConnectionFailed as connection:
-            _LOGGER.debug("Connection lost during update: %s", connection)
 
     @convert_exception
     async def async_mute_volume(self, mute: bool) -> None:
@@ -179,7 +122,7 @@ class ArcamFmj(MediaPlayerEntity):
 
     @convert_exception
     async def async_select_sound_mode(self, sound_mode: str) -> None:
-        """Select a specific source."""
+        """Select a specific sound mode."""
         try:
             await self._state.set_decode_mode(sound_mode)
         except (KeyError, ValueError) as exception:
@@ -263,7 +206,6 @@ class ArcamFmj(MediaPlayerEntity):
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
     ) -> None:
         """Play media."""
-
         if media_id.startswith("preset:"):
             preset = int(media_id[7:])
             await self._state.set_tuner_preset(preset)
@@ -367,22 +309,3 @@ class ArcamFmj(MediaPlayerEntity):
         else:
             value = source.name
         return value
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return extra state attributes."""
-        attrs: dict[str, Any] = {}
-        audio_format, audio_config = self._state.get_incoming_audio_format()
-        if audio_format is not None:
-            attrs["audio_format"] = audio_format.name
-            attrs["audio_config"] = audio_config.name
-        if (video := self._state.get_incoming_video_parameters()) is not None:
-            attrs["video_resolution"] = (
-                f"{video.horizontal_resolution}x{video.vertical_resolution}"
-            )
-            attrs["video_refresh_rate"] = video.refresh_rate
-            attrs["video_colorspace"] = video.colorspace.name
-            attrs["video_interlaced"] = video.interlaced
-        if rate := self._state.get_incoming_audio_sample_rate():
-            attrs["audio_sample_rate"] = rate
-        return attrs
