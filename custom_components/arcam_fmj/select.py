@@ -196,7 +196,12 @@ class ArcamSoundModeSelectEntity(ArcamFmjEntity, SelectEntity):
         modes = self._state.get_decode_modes()
         if modes is None:
             return []
-        return [_format_mode_name(m.name) for m in modes]
+        names = [_format_mode_name(m.name) for m in modes]
+        # Ensure current mode is in the list (may come from fallback enum)
+        current = self.current_option
+        if current and current not in names:
+            names.append(current)
+        return names
 
     @property
     def current_option(self) -> str | None:

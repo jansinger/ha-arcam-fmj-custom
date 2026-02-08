@@ -346,3 +346,31 @@ async def test_set_sound_mode(
 
     # "Stereo Downmix" -> "STEREO_DOWNMIX"
     mock_state_zone1.set_decode_mode.assert_called_once_with("STEREO_DOWNMIX")
+
+
+async def test_sound_mode_current_not_in_modes_list(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test current mode from fallback enum is added to options list."""
+    from arcam.fmj import DecodeMode2CH, DecodeModeMCH
+
+    # Simulate AV40 scenario: 2CH modes listed but current mode from MCH fallback
+    mock_state_zone1.get_decode_modes.return_value = [
+        DecodeMode2CH.STEREO,
+        DecodeMode2CH.DOLBY_SURROUND,
+    ]
+    # Current mode is MCH-only (not in 2CH list)
+    mock_state_zone1.get_decode_mode.return_value = DecodeModeMCH.MULTI_CHANNEL
+
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_SOUND_MODE)
+    options = state.attributes.get("options")
+    assert "Stereo" in options
+    assert "Dolby Surround" in options
+    # MCH-only mode should be appended
+    assert "Multi Channel" in options
+    assert state.state == "Multi Channel"
