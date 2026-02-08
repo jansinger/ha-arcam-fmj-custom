@@ -66,7 +66,7 @@ class ArcamFmjEntity(Entity):
         def _started(host: str) -> None:
             if host == self._state.client.host:
                 self._attr_available = True
-                self.async_schedule_update_ha_state(force_refresh=True)
+                self.async_write_ha_state()
 
         @callback
         def _stopped(host: str) -> None:

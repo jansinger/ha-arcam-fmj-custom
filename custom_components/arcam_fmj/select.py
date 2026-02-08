@@ -118,7 +118,7 @@ async def async_setup_entry(
 
     # Display brightness and compression are only supported on Zone 1
     entities: list[ArcamSelectEntity] = [
-        ArcamSelectEntity(config_entry.title, data.state_zone1, uuid, description)
+        ArcamSelectEntity(data.device_name, data.state_zone1, uuid, description)
         for description in SELECT_DESCRIPTIONS
     ]
 

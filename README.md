@@ -4,39 +4,44 @@ Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and ext
 
 ## Features
 
-- **Mute fix:** Correctly synchronizes mute state on devices using RC5 commands (AV40, AVR series, etc.)
-- **Availability tracking:** Shows "unavailable" when connection is lost (instead of "off")
-- **Audio/Video info:** Exposes current audio format (Dolby Atmos, DTS:X, PCM...) and video parameters (resolution, HDR) as state attributes
+- **Device model detection:** Automatically detects the actual device model (e.g. "AV40") via AMX Duet protocol for short, clean entity names
+- **Maxi-media-player compatible:** Optimized entity naming for [maxi-media-player](https://github.com/punxaphil/maxi-media-player) card
+- **Companion artwork:** Displays album art from Cast/DLNA entities on the same host
+- **Now Playing Info:** Shows media title, artist, and album from network sources
+- **Diagnostic sensors:** Audio format, video resolution, network playback status, and more
 - **Audio controls:** Bass, Treble, Balance, Subwoofer Trim, Lip Sync Delay as number entities
-- **Room EQ:** Toggle Room Equalization on/off as switch entity
+- **Room EQ:** Select between Off and 3 presets
+- **Dolby Audio:** Select Dolby mode (Off / Movie / Music / Night)
 - **Display & Compression:** Display brightness and dynamic range compression as select entities
-- **Device model detection:** Automatically detects the actual device model (e.g. "AV40") via AMX Duet
+- **Availability tracking:** Shows "unavailable" when connection is lost (instead of "off")
+- **Mute fix:** Correctly synchronizes mute state on devices using RC5 commands
 
 ## Entities
 
-| Entity Type | Name | Description |
-|-------------|------|-------------|
-| Media Player | Zone 1 / Zone 2 | Main control: power, volume, mute, source, sound mode, tuner |
-| Number | Bass | -14 to +14 |
-| Number | Treble | -14 to +14 |
-| Number | Balance | -13 to +13 |
-| Number | Subwoofer Trim | -14 to +14 dB |
-| Number | Lip Sync Delay | 0 to 200 ms |
-| Switch | Room EQ | Enable/disable room equalization |
-| Select | Display Brightness | Off / Level 1 / Level 2 / Level 3 |
-| Select | Compression | Off / Light / Medium / Heavy |
-
-## Extra State Attributes (Media Player)
-
-| Attribute | Example | Description |
-|-----------|---------|-------------|
-| `audio_format` | `DOLBY_ATMOS` | Current incoming audio format |
-| `audio_config` | `STEREO_CENTER_SURR_LR_BACK_LR_LFE` | Audio channel configuration |
-| `audio_sample_rate` | `48000` | Sample rate in Hz |
-| `video_resolution` | `3840x2160` | Video resolution |
-| `video_refresh_rate` | `60` | Refresh rate |
-| `video_colorspace` | `HDR10` | HDR format |
-| `video_interlaced` | `false` | Interlaced or progressive |
+| Entity Type | Name | Default | Description |
+|-------------|------|---------|-------------|
+| Media Player | Zone 1 / Zone 2 | Enabled / Disabled | Power, volume, mute, source, sound mode, tuner, now playing, artwork |
+| Number | Bass | Enabled | -14 to +14 |
+| Number | Treble | Enabled | -14 to +14 |
+| Number | Balance | Enabled | -13 to +13 |
+| Number | Subwoofer Trim | Disabled | -14 to +14 dB |
+| Number | Lip Sync Delay | Disabled | 0 to 200 ms |
+| Select | Display Brightness | Enabled | Off / Level 1 / Level 2 / Level 3 |
+| Select | Room EQ | Enabled | Off / Preset 1 / Preset 2 / Preset 3 |
+| Select | Compression | Disabled | Off / Light / Medium / Heavy |
+| Select | Dolby Audio | Disabled | Off / Movie / Music / Night |
+| Sensor | Audio Input Format | Enabled | Dolby Atmos, DTS:X, PCM, etc. |
+| Sensor | Audio Channels | Enabled | Channel configuration (e.g. 7.1) |
+| Sensor | Video Resolution | Enabled | e.g. 3840x2160 |
+| Sensor | Video Refresh Rate | Disabled | e.g. 60 Hz |
+| Sensor | Video Colorspace | Disabled | SDR, HDR10, Dolby Vision, etc. |
+| Sensor | Video Scan Mode | Disabled | Progressive / Interlaced |
+| Sensor | Audio Sample Rate | Disabled | e.g. 48000 Hz |
+| Sensor | Network Playback | Disabled | Playback status for network sources |
+| Sensor | Bluetooth Status | Disabled | Bluetooth connection state |
+| Sensor | Room EQ Names | Disabled | Custom preset names (attributes: eq1, eq2, eq3) |
+| Sensor | HDMI Settings | Disabled | CEC, ARC, OSD settings (as attributes) |
+| Sensor | Zone Settings | Disabled | Zone 2 input, volume, status (as attributes) |
 
 ## Installation via HACS
 
@@ -63,7 +68,7 @@ Combine all entities into one card using [stack-in-card](https://github.com/cust
 type: custom:stack-in-card
 cards:
   - type: custom:mushroom-media-player-card
-    entity: media_player.arcam_fmj_zone_1
+    entity: media_player.arcam_av40_zone_1
     use_media_info: true
     show_volume_level: true
     volume_controls:
@@ -73,58 +78,62 @@ cards:
     media_controls:
       - on_off
 
-  - type: markdown
-    content: >
-      {% set mp = states.media_player.arcam_fmj_zone_1 %}
-      {% if mp.attributes.audio_format is defined %}
-      **Audio:** {{ mp.attributes.audio_format }}
-      {% if mp.attributes.audio_config is defined %}
-      ({{ mp.attributes.audio_config }}){% endif %}
-      {% endif %}
-      {% if mp.attributes.video_colorspace is defined %}
-      | **Video:** {{ mp.attributes.video_resolution }}
-      {{ mp.attributes.video_colorspace }}
-      {% endif %}
-
   - type: entities
     entities:
-      - entity: number.arcam_fmj_bass
+      - entity: number.arcam_av40_bass
         name: Bass
-      - entity: number.arcam_fmj_treble
+      - entity: number.arcam_av40_treble
         name: Treble
-      - entity: number.arcam_fmj_balance
+      - entity: number.arcam_av40_balance
         name: Balance
-      - entity: number.arcam_fmj_subwoofer_trim
-        name: Subwoofer
-      - entity: number.arcam_fmj_lipsync_delay
-        name: Lip Sync
 
   - type: entities
     entities:
-      - entity: switch.arcam_fmj_room_eq
+      - entity: select.arcam_av40_room_eq
         name: Room EQ
-      - entity: select.arcam_fmj_display_brightness
+      - entity: select.arcam_av40_display_brightness
         name: Display
-      - entity: select.arcam_fmj_compression
-        name: Compression
 ```
 
-**Note:** Entity IDs may vary. Adjust to match your actual entity names.
+**Note:** Entity IDs depend on your device model (e.g. `arcam_av40`, `arcam_avr30`). Adjust to match your actual entity names.
 
 ## Affected Devices
 
-All Arcam devices NOT in the MUTE_WRITE_SUPPORTED list:
+All Arcam devices with IP control:
 - AV40, AV41
 - AVR5, AVR10, AVR11, AVR20, AVR21, AVR30, AVR31
 - AVR390, AVR450, AVR550, AVR600, AVR750, AVR850, AVR860
 
-## Bug Fixes (vs. official integration)
+## Changelog
 
-1. **Mute state sync:** RC5 mute commands now query state after execution
-2. **Client loop resilience:** Unexpected exceptions no longer permanently kill the connection
-3. **Availability:** Entity correctly shows "unavailable" when TCP connection is lost
-4. **Power state:** `None` power state no longer incorrectly shows "Off"
-5. **Turn off:** State is immediately updated after power-off command
+### v2.1.0
+- **Fix: Entity names use device model** instead of IP address (e.g. `arcam_av40_bass` instead of `arcam_fmj_192_168_1_100_bass`)
+- **Fix: Update storm eliminated** — state is updated once centrally instead of per-entity (was causing 10+ second hangs)
+- **Fix: Config flow timeout** for UPnP device description fetch (dd.xml)
+
+### v2.0.0
+- **Room EQ:** Changed from switch to select entity with Off / Preset 1-3
+- **Dolby Audio:** New select entity for Dolby mode control
+- **Diagnostic sensors:** Audio format, video resolution, network playback, Bluetooth status, Room EQ names, HDMI settings, zone settings
+- **Now Playing Info:** Media title, artist, album from network sources (NET, USB, BT)
+- **Companion artwork:** Album art from Cast/DLNA entities on the same host
+- **Maxi-media-player:** Renamed `audio_format` sensor to `audio_input_format` for compatibility
+- **Device naming:** Dynamic device name using detected model (e.g. "Arcam AV40")
+
+### v1.3.0
+- Major refactor with base entity class, sensors, best practices
+
+### v1.2.0
+- Share State objects to fix setup hanging
+
+### v1.1.1
+- Fix Zone 2 timeouts when zone is off
+
+### v1.1.0
+- Audio/video info as state attributes
+- Audio controls (bass, treble, balance, sub trim, lipsync)
+- Room EQ switch, display brightness and compression select
+- Bug fixes: client loop resilience, availability tracking, power state, turn off
 
 ## Credits
 

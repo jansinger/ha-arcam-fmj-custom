@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from asyncio import timeout
 from typing import Any
 from urllib.parse import urlparse
 
@@ -49,9 +50,13 @@ class ArcamFmjFlowHandler(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            uuid = await get_uniqueid_from_host(
-                async_get_clientsession(self.hass), user_input[CONF_HOST]
-            )
+            try:
+                async with timeout(5):
+                    uuid = await get_uniqueid_from_host(
+                        async_get_clientsession(self.hass), user_input[CONF_HOST]
+                    )
+            except TimeoutError:
+                uuid = None
             if uuid:
                 await self._async_set_unique_id_and_update(
                     user_input[CONF_HOST], user_input[CONF_PORT], uuid

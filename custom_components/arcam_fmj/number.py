@@ -107,7 +107,7 @@ async def async_setup_entry(
 
     # Audio controls are only supported on Zone 1
     entities: list[ArcamNumberEntity] = [
-        ArcamNumberEntity(config_entry.title, data.state_zone1, uuid, description)
+        ArcamNumberEntity(data.device_name, data.state_zone1, uuid, description)
         for description in NUMBER_DESCRIPTIONS
     ]
 

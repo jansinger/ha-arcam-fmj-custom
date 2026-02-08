@@ -46,8 +46,8 @@ async def async_setup_entry(
 
     async_add_entities(
         [
-            ArcamFmj(config_entry.title, data.state_zone1, uuid),
-            ArcamFmj(config_entry.title, data.state_zone2, uuid),
+            ArcamFmj(data.device_name, data.state_zone1, uuid),
+            ArcamFmj(data.device_name, data.state_zone2, uuid),
         ],
     )
 

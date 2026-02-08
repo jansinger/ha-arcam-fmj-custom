@@ -268,7 +268,7 @@ async def async_setup_entry(
 
     # Diagnostic sensors are only relevant for Zone 1
     entities: list[ArcamSensorEntity] = [
-        ArcamSensorEntity(config_entry.title, data.state_zone1, uuid, description)
+        ArcamSensorEntity(data.device_name, data.state_zone1, uuid, description)
         for description in SENSOR_DESCRIPTIONS
     ]
 

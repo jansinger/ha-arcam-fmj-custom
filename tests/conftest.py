@@ -165,6 +165,10 @@ def mock_setup_entry(mock_client, mock_state_zone1, mock_state_zone2):
             side_effect=[mock_state_zone1, mock_state_zone2],
         ),
         patch(
+            "custom_components.arcam_fmj._fetch_device_name",
+            new=AsyncMock(return_value="AV40"),
+        ),
+        patch(
             "custom_components.arcam_fmj._run_client",
             return_value=AsyncMock()(),
         ),

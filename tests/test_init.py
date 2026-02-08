@@ -53,3 +53,4 @@ async def test_runtime_data_set(
     assert data.client is mock_client
     assert data.state_zone1 is mock_state_zone1
     assert data.state_zone2 is mock_state_zone2
+    assert data.device_name == "Arcam AV40"
