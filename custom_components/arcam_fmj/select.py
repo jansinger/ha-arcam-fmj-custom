@@ -111,11 +111,15 @@ async def async_setup_entry(
     data = config_entry.runtime_data
     uuid = config_entry.unique_id or config_entry.entry_id
 
-    # Display brightness and compression are only supported on Zone 1
-    entities: list[ArcamSelectEntity] = [
+    entities: list[SelectEntity] = [
         ArcamSelectEntity(data.device_name, data.state_zone1, uuid, description)
         for description in SELECT_DESCRIPTIONS
     ]
+
+    # Sound mode (decode mode) for Zone 1 — dynamic options based on audio input
+    entities.append(
+        ArcamSoundModeSelectEntity(data.device_name, data.state_zone1, uuid)
+    )
 
     async_add_entities(entities)
 
@@ -157,5 +161,61 @@ class ArcamSelectEntity(ArcamFmjEntity, SelectEntity):
         except ConnectionFailed as exception:
             raise HomeAssistantError(
                 f"Connection failed during {self.entity_description.key}"
+            ) from exception
+        self.async_write_ha_state()
+
+
+def _format_mode_name(name: str) -> str:
+    """Format enum name for display: STEREO_DOWNMIX -> Stereo Downmix."""
+    return name.replace("_", " ").title()
+
+
+def _parse_mode_name(display: str) -> str:
+    """Parse display name back to enum name: Stereo Downmix -> STEREO_DOWNMIX."""
+    return display.replace(" ", "_").upper()
+
+
+class ArcamSoundModeSelectEntity(ArcamFmjEntity, SelectEntity):
+    """Select entity for Arcam sound/decode mode with dynamic options."""
+
+    _attr_name = "Sound Mode"
+
+    def __init__(
+        self,
+        device_name: str,
+        state: State,
+        uuid: str,
+    ) -> None:
+        """Initialize the sound mode select entity."""
+        super().__init__(device_name, state, uuid)
+        self._attr_unique_id = f"{uuid}-{state.zn}-sound_mode"
+
+    @property
+    def options(self) -> list[str]:
+        """Return available sound modes (dynamic based on audio input)."""
+        modes = self._state.get_decode_modes()
+        if modes is None:
+            return []
+        return [_format_mode_name(m.name) for m in modes]
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the current sound mode."""
+        mode = self._state.get_decode_mode()
+        if mode is None:
+            return None
+        return _format_mode_name(mode.name)
+
+    async def async_select_option(self, option: str) -> None:
+        """Set the sound mode."""
+        try:
+            await self._state.set_decode_mode(_parse_mode_name(option))
+        except (KeyError, ValueError) as exception:
+            raise HomeAssistantError(
+                f"Unsupported sound mode: {option}"
+            ) from exception
+        except ConnectionFailed as exception:
+            raise HomeAssistantError(
+                "Connection failed during sound_mode"
             ) from exception
         self.async_write_ha_state()

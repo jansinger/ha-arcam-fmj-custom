@@ -16,6 +16,7 @@ ENTITY_BRIGHTNESS = "select.arcam_av40_display_brightness"
 ENTITY_COMPRESSION = "select.arcam_av40_compression"
 ENTITY_ROOM_EQ = "select.arcam_av40_room_eq"
 ENTITY_DOLBY_AUDIO = "select.arcam_av40_dolby_audio"
+ENTITY_SOUND_MODE = "select.arcam_av40_sound_mode"
 
 
 async def test_select_entities_created(
@@ -289,3 +290,59 @@ async def test_dolby_audio_disabled_by_default(
     entry = registry.async_get(ENTITY_DOLBY_AUDIO)
     assert entry is not None
     assert entry.disabled_by == er.RegistryEntryDisabler.INTEGRATION
+
+
+# --- Sound Mode Select tests ---
+
+
+async def test_sound_mode_select_created(
+    hass: HomeAssistant, mock_config_entry, mock_setup_entry
+):
+    """Test sound mode select entity is created."""
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_SOUND_MODE)
+    assert state is not None
+
+
+async def test_sound_mode_select_value(
+    hass: HomeAssistant, mock_config_entry, mock_setup_entry
+):
+    """Test sound mode displays formatted decode mode name."""
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_SOUND_MODE)
+    # Mock returns DecodeModeMCH.MULTI_CHANNEL -> "Multi Channel"
+    assert state.state == "Multi Channel"
+
+
+async def test_sound_mode_select_options(
+    hass: HomeAssistant, mock_config_entry, mock_setup_entry
+):
+    """Test sound mode options are formatted decode mode names."""
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_SOUND_MODE)
+    options = state.attributes.get("options")
+    assert "Stereo Downmix" in options
+    assert "Multi Channel" in options
+
+
+async def test_set_sound_mode(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test setting sound mode converts display name back to enum name."""
+    await setup_integration(hass, mock_config_entry)
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {ATTR_ENTITY_ID: ENTITY_SOUND_MODE, "option": "Stereo Downmix"},
+        blocking=True,
+    )
+
+    # "Stereo Downmix" -> "STEREO_DOWNMIX"
+    mock_state_zone1.set_decode_mode.assert_called_once_with("STEREO_DOWNMIX")

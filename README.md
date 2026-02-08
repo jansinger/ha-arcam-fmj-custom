@@ -29,6 +29,7 @@ Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and ext
 | Select | Display Brightness | Enabled | Off / Level 1 / Level 2 / Level 3 |
 | Select | Room EQ | Enabled | Off / Preset 1 / Preset 2 / Preset 3 |
 | Select | Compression | Disabled | Off / Light / Medium / Heavy |
+| Select | Sound Mode | Enabled | Stereo Downmix, Multi Channel, Dolby Surround, etc. |
 | Select | Dolby Audio | Disabled | Off / Movie / Music / Night |
 | Sensor | Audio Input Format | Enabled | Dolby Atmos, DTS:X, PCM, etc. |
 | Sensor | Audio Channels | Enabled | Channel configuration (e.g. 7.1) |
@@ -75,6 +76,8 @@ cards:
 
   - type: entities
     entities:
+      - entity: select.arcam_av40_sound_mode
+        name: Sound Mode
       - entity: select.arcam_av40_room_eq
         name: Room EQ
       - entity: number.arcam_av40_bass
@@ -107,6 +110,8 @@ cards:
 
   - type: entities
     entities:
+      - entity: select.arcam_av40_sound_mode
+        name: Sound Mode
       - entity: select.arcam_av40_room_eq
         name: Room EQ
       - entity: number.arcam_av40_bass
@@ -134,6 +139,7 @@ All Arcam devices with IP control:
 - **Fix: Bass/Treble/Balance values** — Correct sign-magnitude decoding per Arcam protocol (was showing -14 instead of 0 at neutral)
 - **Fix: Value ranges** — Bass/Treble: -12 to +12 dB, Balance: -6 to +6, Sub Trim: -10 to +10 dB (0.5 steps), Lipsync: 0-250 ms
 - **Fix: Entity category** — Number and select entities no longer hidden as "config" entities, making them visible in Lovelace entity pickers
+- **Sound Mode select entity** — Decode mode (Stereo Downmix, Multi Channel, Dolby Surround, etc.) as separate select entity for dashboard cards
 - **Dashboard examples** — Maxi Media Player and Mushroom card setups with audio controls
 
 ### v2.1.1
