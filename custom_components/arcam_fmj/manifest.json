@@ -1,7 +1,7 @@
 {
   "domain": "arcam_fmj",
   "name": "Arcam FMJ Receivers (Fixed)",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "codeowners": ["@jansinger"],
   "config_flow": true,
   "documentation": "https://github.com/jansinger/ha-arcam-fmj-custom",

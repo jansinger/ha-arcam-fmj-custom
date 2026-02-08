@@ -25,7 +25,7 @@ type ArcamFmjConfigEntry = ConfigEntry[Client]
 _LOGGER = logging.getLogger(__name__)
 
 
-PLATFORMS = [Platform.MEDIA_PLAYER]
+PLATFORMS = [Platform.MEDIA_PLAYER, Platform.NUMBER, Platform.SELECT, Platform.SWITCH]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ArcamFmjConfigEntry) -> bool:
@@ -71,5 +71,5 @@ async def _run_client(hass: HomeAssistant, client: Client, interval: float) -> N
         except TimeoutError:
             continue
         except Exception:
-            _LOGGER.exception("Unexpected exception, aborting arcam client")
-            return
+            _LOGGER.exception("Unexpected exception in arcam client, retrying")
+            await asyncio.sleep(interval)

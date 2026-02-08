@@ -71,7 +71,7 @@ def convert_exception[**_P, _R](
             return await func(*args, **kwargs)
         except ConnectionFailed as exception:
             raise HomeAssistantError(
-                f"Connection failed to device during {func}"
+                f"Connection failed to device during {func.__name__}"
             ) from exception
 
     return _convert_exception
@@ -82,6 +82,7 @@ class ArcamFmj(MediaPlayerEntity):
 
     _attr_should_poll = False
     _attr_has_entity_name = True
+    _attr_available = False
 
     def __init__(
         self,
@@ -111,14 +112,14 @@ class ArcamFmj(MediaPlayerEntity):
                 (DOMAIN, uuid),
             },
             manufacturer="Arcam",
-            model="Arcam FMJ AVR",
+            model=state.model or "Arcam FMJ AVR",
             name=device_name,
         )
 
     @property
     def state(self) -> MediaPlayerState:
         """Return the state of the device."""
-        if self._state.get_power():
+        if self._state.get_power() is True:
             return MediaPlayerState.ON
         return MediaPlayerState.OFF
 
@@ -127,6 +128,7 @@ class ArcamFmj(MediaPlayerEntity):
         await self._state.start()
         try:
             await self._state.update()
+            self._attr_available = True
         except ConnectionFailed as connection:
             _LOGGER.debug("Connection lost during addition: %s", connection)
 
@@ -138,11 +140,13 @@ class ArcamFmj(MediaPlayerEntity):
         @callback
         def _started(host: str) -> None:
             if host == self._state.client.host:
+                self._attr_available = True
                 self.async_schedule_update_ha_state(force_refresh=True)
 
         @callback
         def _stopped(host: str) -> None:
             if host == self._state.client.host:
+                self._attr_available = False
                 self.async_schedule_update_ha_state(force_refresh=True)
 
         self.async_on_remove(
@@ -209,7 +213,7 @@ class ArcamFmj(MediaPlayerEntity):
 
     @convert_exception
     async def async_volume_down(self) -> None:
-        """Turn volume up for media player."""
+        """Turn volume down for media player."""
         await self._state.dec_volume()
         self.async_write_ha_state()
 
@@ -227,6 +231,7 @@ class ArcamFmj(MediaPlayerEntity):
     async def async_turn_off(self) -> None:
         """Turn the media player off."""
         await self._state.set_power(False)
+        self.async_write_ha_state()
 
     async def async_browse_media(
         self,
@@ -372,3 +377,22 @@ class ArcamFmj(MediaPlayerEntity):
         else:
             value = source.name
         return value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        attrs: dict[str, Any] = {}
+        audio_format, audio_config = self._state.get_incoming_audio_format()
+        if audio_format is not None:
+            attrs["audio_format"] = audio_format.name
+            attrs["audio_config"] = audio_config.name
+        if (video := self._state.get_incoming_video_parameters()) is not None:
+            attrs["video_resolution"] = (
+                f"{video.horizontal_resolution}x{video.vertical_resolution}"
+            )
+            attrs["video_refresh_rate"] = video.refresh_rate
+            attrs["video_colorspace"] = video.colorspace.name
+            attrs["video_interlaced"] = video.interlaced
+        if rate := self._state.get_incoming_audio_sample_rate():
+            attrs["audio_sample_rate"] = rate
+        return attrs
