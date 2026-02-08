@@ -106,6 +106,9 @@ All Arcam devices with IP control:
 
 ## Changelog
 
+### v2.1.1
+- **Fix: Device model detection** — `process()` must run as background task for AMX Duet response to be received
+
 ### v2.1.0
 - **Fix: Entity names use device model** instead of IP address (e.g. `arcam_av40_bass` instead of `arcam_fmj_192_168_1_100_bass`)
 - **Fix: Update storm eliminated** — state is updated once centrally instead of per-entity (was causing 10+ second hangs)
