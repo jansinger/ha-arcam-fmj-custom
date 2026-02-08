@@ -34,18 +34,18 @@ async def async_setup_entry(
     """Set up Arcam switch entities."""
     client = config_entry.runtime_data
 
-    entities: list[ArcamRoomEqSwitch] = []
-    for zone in (1, 2):
-        state = State(client, zone)
-        entities.append(
+    # Room EQ is only supported on Zone 1
+    state = State(client, 1)
+    async_add_entities(
+        [
             ArcamRoomEqSwitch(
                 config_entry.title,
                 state,
                 config_entry.unique_id or config_entry.entry_id,
             )
-        )
-
-    async_add_entities(entities, True)
+        ],
+        True,
+    )
 
 
 class ArcamRoomEqSwitch(SwitchEntity):

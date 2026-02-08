@@ -85,20 +85,17 @@ async def async_setup_entry(
     """Set up Arcam select entities."""
     client = config_entry.runtime_data
 
-    entities: list[ArcamSelectEntity] = []
-    for zone in (1, 2):
-        state = State(client, zone)
-        for description in SELECT_DESCRIPTIONS:
-            if zone == 2 and not description.zone_support:
-                continue
-            entities.append(
-                ArcamSelectEntity(
-                    config_entry.title,
-                    state,
-                    config_entry.unique_id or config_entry.entry_id,
-                    description,
-                )
-            )
+    # Display brightness and compression are only supported on Zone 1
+    state = State(client, 1)
+    entities: list[ArcamSelectEntity] = [
+        ArcamSelectEntity(
+            config_entry.title,
+            state,
+            config_entry.unique_id or config_entry.entry_id,
+            description,
+        )
+        for description in SELECT_DESCRIPTIONS
+    ]
 
     async_add_entities(entities, True)
 
