@@ -6,7 +6,6 @@ import logging
 from typing import Any
 
 from arcam.fmj import ConnectionFailed
-from arcam.fmj.state import State
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant, callback
@@ -32,19 +31,17 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Arcam switch entities."""
-    client = config_entry.runtime_data
+    data = config_entry.runtime_data
 
     # Room EQ is only supported on Zone 1
-    state = State(client, 1)
     async_add_entities(
         [
             ArcamRoomEqSwitch(
                 config_entry.title,
-                state,
+                data.state_zone1,
                 config_entry.unique_id or config_entry.entry_id,
             )
         ],
-        True,
     )
 
 
@@ -103,12 +100,8 @@ class ArcamRoomEqSwitch(SwitchEntity):
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks."""
-        await self._state.start()
-        try:
-            await self._state.update()
+        if self._state.client.connected:
             self._attr_available = True
-        except ConnectionFailed:
-            _LOGGER.debug("Connection lost during addition")
 
         @callback
         def _data(host: str) -> None:
@@ -119,13 +112,13 @@ class ArcamRoomEqSwitch(SwitchEntity):
         def _started(host: str) -> None:
             if host == self._state.client.host:
                 self._attr_available = True
-                self.async_schedule_update_ha_state(force_refresh=True)
+                self.async_write_ha_state()
 
         @callback
         def _stopped(host: str) -> None:
             if host == self._state.client.host:
                 self._attr_available = False
-                self.async_schedule_update_ha_state(force_refresh=True)
+                self.async_write_ha_state()
 
         self.async_on_remove(
             async_dispatcher_connect(self.hass, SIGNAL_CLIENT_DATA, _data)

@@ -2,11 +2,13 @@
 
 import asyncio
 from asyncio import timeout
+from dataclasses import dataclass
 import logging
 from typing import Any
 
 from arcam.fmj import ConnectionFailed
 from arcam.fmj.client import Client
+from arcam.fmj.state import State
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
@@ -20,7 +22,17 @@ from .const import (
     SIGNAL_CLIENT_STOPPED,
 )
 
-type ArcamFmjConfigEntry = ConfigEntry[Client]
+
+@dataclass
+class ArcamFmjData:
+    """Runtime data for Arcam FMJ integration."""
+
+    client: Client
+    state_zone1: State
+    state_zone2: State
+
+
+type ArcamFmjConfigEntry = ConfigEntry[ArcamFmjData]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,7 +42,18 @@ PLATFORMS = [Platform.MEDIA_PLAYER, Platform.NUMBER, Platform.SELECT, Platform.S
 
 async def async_setup_entry(hass: HomeAssistant, entry: ArcamFmjConfigEntry) -> bool:
     """Set up config entry."""
-    entry.runtime_data = Client(entry.data[CONF_HOST], entry.data[CONF_PORT])
+    client = Client(entry.data[CONF_HOST], entry.data[CONF_PORT])
+    state_zone1 = State(client, 1)
+    state_zone2 = State(client, 2)
+
+    await state_zone1.start()
+    await state_zone2.start()
+
+    entry.runtime_data = ArcamFmjData(
+        client=client,
+        state_zone1=state_zone1,
+        state_zone2=state_zone2,
+    )
 
     entry.async_create_background_task(
         hass, _run_client(hass, entry.runtime_data, DEFAULT_SCAN_INTERVAL), "arcam_fmj"
@@ -45,7 +68,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def _run_client(hass: HomeAssistant, client: Client, interval: float) -> None:
+async def _run_client(hass: HomeAssistant, data: ArcamFmjData, interval: float) -> None:
+    client = data.client
+
     def _listen(_: Any) -> None:
         async_dispatcher_send(hass, SIGNAL_CLIENT_DATA, client.host)
 

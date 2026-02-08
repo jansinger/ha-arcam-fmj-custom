@@ -8,7 +8,6 @@ import logging
 from typing import Any
 
 from arcam.fmj import ConnectionFailed, SourceCodes
-from arcam.fmj.state import State
 
 from homeassistant.components.media_player import (
     BrowseError,
@@ -44,19 +43,14 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the configuration entry."""
-
-    client = config_entry.runtime_data
+    data = config_entry.runtime_data
+    uuid = config_entry.unique_id or config_entry.entry_id
 
     async_add_entities(
         [
-            ArcamFmj(
-                config_entry.title,
-                State(client, zone),
-                config_entry.unique_id or config_entry.entry_id,
-            )
-            for zone in (1, 2)
+            ArcamFmj(config_entry.title, data.state_zone1, uuid),
+            ArcamFmj(config_entry.title, data.state_zone2, uuid),
         ],
-        True,
     )
 
 
@@ -125,12 +119,8 @@ class ArcamFmj(MediaPlayerEntity):
 
     async def async_added_to_hass(self) -> None:
         """Once registered, add listener for events."""
-        await self._state.start()
-        try:
-            await self._state.update()
+        if self._state.client.connected:
             self._attr_available = True
-        except ConnectionFailed as connection:
-            _LOGGER.debug("Connection lost during addition: %s", connection)
 
         @callback
         def _data(host: str) -> None:
@@ -147,7 +137,7 @@ class ArcamFmj(MediaPlayerEntity):
         def _stopped(host: str) -> None:
             if host == self._state.client.host:
                 self._attr_available = False
-                self.async_schedule_update_ha_state(force_refresh=True)
+                self.async_write_ha_state()
 
         self.async_on_remove(
             async_dispatcher_connect(self.hass, SIGNAL_CLIENT_DATA, _data)
