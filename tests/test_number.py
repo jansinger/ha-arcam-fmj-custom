@@ -141,7 +141,7 @@ async def test_number_config_category(
     registry = er.async_get(hass)
     entry = registry.async_get(ENTITY_BASS)
     assert entry is not None
-    assert entry.entity_category == "config"
+    assert entry.entity_category is None
 
 
 async def test_number_none_value(

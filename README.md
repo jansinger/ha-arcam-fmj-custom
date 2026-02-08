@@ -106,6 +106,9 @@ All Arcam devices with IP control:
 
 ## Changelog
 
+### v2.2.0
+- **Fix: Entity category** — Number and select entities no longer hidden as "config" entities, making them visible in Lovelace entity pickers and cards like Maxi Media Player
+
 ### v2.1.1
 - **Fix: Device model detection** — `process()` must run as background task for AMX Duet response to be received
 

@@ -11,7 +11,6 @@ from arcam.fmj import ConnectionFailed
 from arcam.fmj.state import State
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -37,7 +36,6 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="bass",
         translation_key="bass",
-        entity_category=EntityCategory.CONFIG,
         native_min_value=-14,
         native_max_value=14,
         native_step=1,
@@ -48,7 +46,6 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="treble",
         translation_key="treble",
-        entity_category=EntityCategory.CONFIG,
         native_min_value=-14,
         native_max_value=14,
         native_step=1,
@@ -59,7 +56,6 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="balance",
         translation_key="balance",
-        entity_category=EntityCategory.CONFIG,
         native_min_value=-13,
         native_max_value=13,
         native_step=1,
@@ -70,7 +66,6 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="subwoofer_trim",
         translation_key="subwoofer_trim",
-        entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         native_min_value=-14,
         native_max_value=14,
@@ -83,7 +78,6 @@ NUMBER_DESCRIPTIONS: list[ArcamNumberEntityDescription] = [
     ArcamNumberEntityDescription(
         key="lipsync_delay",
         translation_key="lipsync_delay",
-        entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         native_min_value=0,
         native_max_value=200,

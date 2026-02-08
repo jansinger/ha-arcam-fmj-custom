@@ -11,7 +11,6 @@ from arcam.fmj import ConnectionFailed, DolbyAudioMode
 from arcam.fmj.state import State
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -67,7 +66,6 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
     ArcamSelectEntityDescription(
         key="display_brightness",
         translation_key="display_brightness",
-        entity_category=EntityCategory.CONFIG,
         options_map=DISPLAY_BRIGHTNESS_OPTIONS,
         options=list(DISPLAY_BRIGHTNESS_OPTIONS.values()),
         get_value=lambda state: state.get_display_brightness(),
@@ -76,7 +74,6 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
     ArcamSelectEntityDescription(
         key="compression",
         translation_key="compression",
-        entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         options_map=COMPRESSION_OPTIONS,
         options=list(COMPRESSION_OPTIONS.values()),
@@ -86,7 +83,6 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
     ArcamSelectEntityDescription(
         key="room_eq",
         translation_key="room_eq",
-        entity_category=EntityCategory.CONFIG,
         options_map=ROOM_EQ_OPTIONS,
         options=list(ROOM_EQ_OPTIONS.values()),
         get_value=lambda state: state.get_room_eq(),
@@ -95,7 +91,6 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
     ArcamSelectEntityDescription(
         key="dolby_audio",
         translation_key="dolby_audio",
-        entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         options_map=DOLBY_AUDIO_OPTIONS,
         options=list(DOLBY_AUDIO_OPTIONS.values()),
