@@ -50,18 +50,26 @@ PLATFORMS = [
 async def _fetch_device_name(client: Client) -> str | None:
     """Connect briefly to get device model name via AMX Duet protocol."""
     try:
-        async with timeout(3):
+        async with timeout(5):
             await client.start()
-        amx = await client.request_raw(AmxDuetRequest())
-        if amx and amx.device_model:
-            return amx.device_model
+            # process() must run for request/response to work
+            process_task = asyncio.create_task(client.process())
+            try:
+                amx = await client.request_raw(AmxDuetRequest())
+                if amx and amx.device_model:
+                    return amx.device_model
+            finally:
+                process_task.cancel()
+                try:
+                    await process_task
+                except (asyncio.CancelledError, ConnectionFailed):
+                    pass
     except (ConnectionFailed, TimeoutError):
         _LOGGER.debug("Could not fetch model name during setup")
     except Exception:
         _LOGGER.debug("Unexpected error fetching model name", exc_info=True)
     finally:
-        if client.connected:
-            await client.stop()
+        await client.stop()
     return None
 
 
@@ -111,19 +119,21 @@ async def _run_client(hass: HomeAssistant, data: ArcamFmjData, interval: float) 
 
             _LOGGER.debug("Client connected %s", client.host)
 
-            # Do a single state update before notifying entities.
-            # This prevents every entity from calling update() independently.
-            try:
-                await data.state_zone1.update()
-                await data.state_zone2.update()
-            except Exception:
-                _LOGGER.debug("Initial state update failed", exc_info=True)
-
-            async_dispatcher_send(hass, SIGNAL_CLIENT_STARTED, client.host)
-
             try:
                 with client.listen(_listen):
-                    await client.process()
+                    # process() must run for request/response to work
+                    process_task = asyncio.create_task(client.process())
+
+                    # Do a single state update before notifying entities.
+                    try:
+                        await data.state_zone1.update()
+                        await data.state_zone2.update()
+                    except Exception:
+                        _LOGGER.debug("Initial state update failed", exc_info=True)
+
+                    async_dispatcher_send(hass, SIGNAL_CLIENT_STARTED, client.host)
+
+                    await process_task
             finally:
                 await client.stop()
 
