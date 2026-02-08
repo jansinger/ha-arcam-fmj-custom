@@ -67,11 +67,11 @@ def _create_mock_state(zone: int, client: MagicMock) -> MagicMock:
     state.get_dls_pdt.return_value = None
     state.get_rds_information.return_value = None
 
-    # Number entity controls
-    state.get_bass.return_value = 14  # 0x0E = neutral (offset 14 -> displayed as 0)
-    state.get_treble.return_value = 14
-    state.get_balance.return_value = 13  # offset 13 -> displayed as 0
-    state.get_subwoofer_trim.return_value = 14
+    # Number entity controls (sign-magnitude: 0x00 = neutral)
+    state.get_bass.return_value = 0
+    state.get_treble.return_value = 0
+    state.get_balance.return_value = 0
+    state.get_subwoofer_trim.return_value = 0
     state.get_lipsync_delay.return_value = 0
 
     # Select entity controls

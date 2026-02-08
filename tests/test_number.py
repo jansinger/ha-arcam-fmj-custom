@@ -44,18 +44,17 @@ async def test_number_entities_created(
 async def test_bass_neutral_value(
     hass: HomeAssistant, mock_config_entry, mock_setup_entry
 ):
-    """Test bass reads neutral (0) when raw value equals offset."""
+    """Test bass reads neutral (0) when raw value is 0x00."""
     await setup_integration(hass, mock_config_entry)
 
     state = hass.states.get(ENTITY_BASS)
-    # Raw 14 - offset 14 = 0
     assert float(state.state) == 0.0
 
 
 async def test_treble_neutral_value(
     hass: HomeAssistant, mock_config_entry, mock_setup_entry
 ):
-    """Test treble reads neutral (0) when raw value equals offset."""
+    """Test treble reads neutral (0) when raw value is 0x00."""
     await setup_integration(hass, mock_config_entry)
 
     state = hass.states.get(ENTITY_TREBLE)
@@ -65,7 +64,7 @@ async def test_treble_neutral_value(
 async def test_balance_neutral_value(
     hass: HomeAssistant, mock_config_entry, mock_setup_entry
 ):
-    """Test balance reads neutral (0) when raw value equals offset."""
+    """Test balance reads neutral (0) when raw value is 0x00."""
     await setup_integration(hass, mock_config_entry)
 
     state = hass.states.get(ENTITY_BALANCE)
@@ -78,7 +77,7 @@ async def test_set_bass(
     mock_setup_entry,
     mock_state_zone1,
 ):
-    """Test setting bass value applies offset correctly."""
+    """Test setting positive bass value sends raw value directly."""
     await setup_integration(hass, mock_config_entry)
 
     await hass.services.async_call(
@@ -88,8 +87,8 @@ async def test_set_bass(
         blocking=True,
     )
 
-    # User value 5 + offset 14 = raw 19
-    mock_state_zone1.set_bass.assert_called_once_with(19)
+    # Positive: user value 5 -> raw 0x05
+    mock_state_zone1.set_bass.assert_called_once_with(5)
 
 
 async def test_set_bass_negative(
@@ -98,7 +97,7 @@ async def test_set_bass_negative(
     mock_setup_entry,
     mock_state_zone1,
 ):
-    """Test setting negative bass value."""
+    """Test setting negative bass value uses sign-magnitude encoding."""
     await setup_integration(hass, mock_config_entry)
 
     await hass.services.async_call(
@@ -108,8 +107,8 @@ async def test_set_bass_negative(
         blocking=True,
     )
 
-    # User value -7 + offset 14 = raw 7
-    mock_state_zone1.set_bass.assert_called_once_with(7)
+    # Negative: user value -7 -> raw 0x80 + 7 = 0x87 (135)
+    mock_state_zone1.set_bass.assert_called_once_with(0x87)
 
 
 async def test_set_treble(
@@ -118,7 +117,7 @@ async def test_set_treble(
     mock_setup_entry,
     mock_state_zone1,
 ):
-    """Test setting treble value applies offset correctly."""
+    """Test setting negative treble value uses sign-magnitude encoding."""
     await setup_integration(hass, mock_config_entry)
 
     await hass.services.async_call(
@@ -128,14 +127,42 @@ async def test_set_treble(
         blocking=True,
     )
 
-    # User value -3 + offset 14 = raw 11
-    mock_state_zone1.set_treble.assert_called_once_with(11)
+    # Negative: user value -3 -> raw 0x80 + 3 = 0x83 (131)
+    mock_state_zone1.set_treble.assert_called_once_with(0x83)
 
 
-async def test_number_config_category(
+async def test_bass_positive_readback(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test reading positive bass value (raw 0x05 = +5dB)."""
+    mock_state_zone1.get_bass.return_value = 0x05
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_BASS)
+    assert float(state.state) == 5.0
+
+
+async def test_bass_negative_readback(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test reading negative bass value (raw 0x83 = -3dB)."""
+    mock_state_zone1.get_bass.return_value = 0x83
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_BASS)
+    assert float(state.state) == -3.0
+
+
+async def test_number_category(
     hass: HomeAssistant, mock_config_entry, mock_setup_entry
 ):
-    """Test number entities have config entity category."""
+    """Test number entities have no entity category."""
     await setup_integration(hass, mock_config_entry)
 
     registry = er.async_get(hass)

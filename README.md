@@ -21,11 +21,11 @@ Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and ext
 | Entity Type | Name | Default | Description |
 |-------------|------|---------|-------------|
 | Media Player | Zone 1 / Zone 2 | Enabled / Disabled | Power, volume, mute, source, sound mode, tuner, now playing, artwork |
-| Number | Bass | Enabled | -14 to +14 |
-| Number | Treble | Enabled | -14 to +14 |
-| Number | Balance | Enabled | -13 to +13 |
-| Number | Subwoofer Trim | Disabled | -14 to +14 dB |
-| Number | Lip Sync Delay | Disabled | 0 to 200 ms |
+| Number | Bass | Enabled | -12 to +12 dB |
+| Number | Treble | Enabled | -12 to +12 dB |
+| Number | Balance | Enabled | -6 to +6 |
+| Number | Subwoofer Trim | Disabled | -10 to +10 dB (0.5 dB steps) |
+| Number | Lip Sync Delay | Disabled | 0 to 250 ms (5 ms steps) |
 | Select | Display Brightness | Enabled | Off / Level 1 / Level 2 / Level 3 |
 | Select | Room EQ | Enabled | Off / Preset 1 / Preset 2 / Preset 3 |
 | Select | Compression | Disabled | Off / Light / Medium / Heavy |
@@ -131,6 +131,8 @@ All Arcam devices with IP control:
 ## Changelog
 
 ### v2.2.0
+- **Fix: Bass/Treble/Balance values** — Correct sign-magnitude decoding per Arcam protocol (was showing -14 instead of 0 at neutral)
+- **Fix: Value ranges** — Bass/Treble: -12 to +12 dB, Balance: -6 to +6, Sub Trim: -10 to +10 dB (0.5 steps), Lipsync: 0-250 ms
 - **Fix: Entity category** — Number and select entities no longer hidden as "config" entities, making them visible in Lovelace entity pickers
 - **Dashboard examples** — Maxi Media Player and Mushroom card setups with audio controls
 
