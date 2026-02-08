@@ -5,7 +5,7 @@ Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and ext
 ## Features
 
 - **Device model detection:** Automatically detects the actual device model (e.g. "AV40") via AMX Duet protocol for short, clean entity names
-- **Maxi-media-player compatible:** Optimized entity naming for [maxi-media-player](https://github.com/punxaphil/maxi-media-player) card
+- **Dashboard-ready:** Short entity names, works with [maxi-media-player](https://github.com/punxaphil/maxi-media-player), [stack-in-card](https://github.com/custom-cards/stack-in-card), and standard Lovelace cards
 - **Companion artwork:** Displays album art from Cast/DLNA entities on the same host
 - **Now Playing Info:** Shows media title, artist, and album from network sources
 - **Diagnostic sensors:** Audio format, video resolution, network playback status, and more
@@ -60,9 +60,36 @@ Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and ext
 2. Copy `custom_components/arcam_fmj` to your HA `config/custom_components/` folder
 3. Restart Home Assistant
 
-## Dashboard Example (Stack-in-Card)
+## Dashboard Examples
 
-Combine all entities into one card using [stack-in-card](https://github.com/custom-cards/stack-in-card):
+### Maxi Media Player + Controls (Stack-in-Card)
+
+Use [maxi-media-player](https://github.com/punxaphil/maxi-media-player) for playback and add audio controls below with [stack-in-card](https://github.com/custom-cards/stack-in-card):
+
+```yaml
+type: custom:stack-in-card
+cards:
+  - type: custom:maxi-media-player
+    entities:
+      - media_player.arcam_av40_zone_1
+
+  - type: entities
+    entities:
+      - entity: select.arcam_av40_room_eq
+        name: Room EQ
+      - entity: number.arcam_av40_bass
+        name: Bass
+      - entity: number.arcam_av40_treble
+        name: Treble
+      - entity: number.arcam_av40_balance
+        name: Balance
+      - entity: select.arcam_av40_display_brightness
+        name: Display
+```
+
+### Mushroom Media Player + Controls
+
+Alternative using [mushroom-media-player-card](https://github.com/piitaya/lovelace-mushroom):
 
 ```yaml
 type: custom:stack-in-card
@@ -80,22 +107,19 @@ cards:
 
   - type: entities
     entities:
+      - entity: select.arcam_av40_room_eq
+        name: Room EQ
       - entity: number.arcam_av40_bass
         name: Bass
       - entity: number.arcam_av40_treble
         name: Treble
       - entity: number.arcam_av40_balance
         name: Balance
-
-  - type: entities
-    entities:
-      - entity: select.arcam_av40_room_eq
-        name: Room EQ
       - entity: select.arcam_av40_display_brightness
         name: Display
 ```
 
-**Note:** Entity IDs depend on your device model (e.g. `arcam_av40`, `arcam_avr30`). Adjust to match your actual entity names.
+> **Note:** Entity IDs depend on your device model (e.g. `arcam_av40`, `arcam_avr30`). Adjust to match your setup. Audio controls (number/select) are separate entities and must be added to the card explicitly — media player cards only show their own controls (volume, source, sound mode).
 
 ## Affected Devices
 
@@ -107,7 +131,8 @@ All Arcam devices with IP control:
 ## Changelog
 
 ### v2.2.0
-- **Fix: Entity category** — Number and select entities no longer hidden as "config" entities, making them visible in Lovelace entity pickers and cards like Maxi Media Player
+- **Fix: Entity category** — Number and select entities no longer hidden as "config" entities, making them visible in Lovelace entity pickers
+- **Dashboard examples** — Maxi Media Player and Mushroom card setups with audio controls
 
 ### v2.1.1
 - **Fix: Device model detection** — `process()` must run as background task for AMX Duet response to be received
@@ -123,7 +148,7 @@ All Arcam devices with IP control:
 - **Diagnostic sensors:** Audio format, video resolution, network playback, Bluetooth status, Room EQ names, HDMI settings, zone settings
 - **Now Playing Info:** Media title, artist, album from network sources (NET, USB, BT)
 - **Companion artwork:** Album art from Cast/DLNA entities on the same host
-- **Maxi-media-player:** Renamed `audio_format` sensor to `audio_input_format` for compatibility
+- **Sensor rename:** `audio_format` renamed to `audio_input_format` to avoid conflicts
 - **Device naming:** Dynamic device name using detected model (e.g. "Arcam AV40")
 
 ### v1.3.0
