@@ -51,11 +51,17 @@
       },
       "compression": {
         "name": "Compression"
+      },
+      "room_eq": {
+        "name": "Room EQ"
+      },
+      "dolby_audio": {
+        "name": "Dolby Audio"
       }
     },
     "sensor": {
-      "audio_format": {
-        "name": "Audio format"
+      "audio_input_format": {
+        "name": "Audio input format"
       },
       "audio_config": {
         "name": "Audio channels"
@@ -74,11 +80,21 @@
       },
       "audio_sample_rate": {
         "name": "Audio sample rate"
-      }
-    },
-    "switch": {
-      "room_eq": {
-        "name": "Room EQ"
+      },
+      "network_playback_status": {
+        "name": "Network playback"
+      },
+      "bluetooth_status": {
+        "name": "Bluetooth status"
+      },
+      "room_eq_names": {
+        "name": "Room EQ names"
+      },
+      "hdmi_settings": {
+        "name": "HDMI settings"
+      },
+      "zone_settings": {
+        "name": "Zone settings"
       }
     }
   }

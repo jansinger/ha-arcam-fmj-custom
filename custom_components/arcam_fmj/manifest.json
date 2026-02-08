@@ -1,14 +1,14 @@
 {
   "domain": "arcam_fmj",
   "name": "Arcam FMJ Receivers (Fixed)",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "codeowners": ["@jansinger"],
   "config_flow": true,
   "documentation": "https://github.com/jansinger/ha-arcam-fmj-custom",
   "integration_type": "device",
   "iot_class": "local_polling",
   "loggers": ["arcam"],
-  "requirements": ["arcam-fmj @ git+https://github.com/jansinger/arcam_fmj.git@6280930"],
+  "requirements": ["arcam-fmj @ git+https://github.com/jansinger/arcam_fmj.git@cde653b"],
   "ssdp": [
     {
       "deviceType": "urn:schemas-upnp-org:device:MediaRenderer:1",

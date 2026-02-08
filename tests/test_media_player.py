@@ -3,7 +3,8 @@
 from unittest.mock import MagicMock
 
 import pytest
-from arcam.fmj import ConnectionFailed, SourceCodes, DecodeModeMCH
+from arcam.fmj import ConnectionFailed, NowPlayingInfo, SourceCodes, DecodeModeMCH
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.components.media_player import (
     MediaPlayerEntityFeature,
@@ -19,8 +20,8 @@ from custom_components.arcam_fmj.const import DOMAIN, EVENT_TURN_ON
 
 from .conftest import MOCK_HOST, MOCK_UUID, setup_integration
 
-ENTITY_ZONE1 = "media_player.arcam_fmj_192_168_1_100_zone_1"
-ENTITY_ZONE2 = "media_player.arcam_fmj_192_168_1_100_zone_2"
+ENTITY_ZONE1 = "media_player.arcam_av40_zone_1"
+ENTITY_ZONE2 = "media_player.arcam_av40_zone_2"
 
 
 async def test_setup_entities(
@@ -444,3 +445,204 @@ async def test_device_info(
     assert device is not None
     assert device.manufacturer == "Arcam"
     assert device.model == "AV40"
+    assert device.name == "Arcam AV40"
+
+
+# --- Now Playing Info tests ---
+
+
+async def test_media_title_network_now_playing(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test now playing info is used for network sources."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_now_playing_info.return_value = NowPlayingInfo(
+        title="My Song",
+        artist="The Artist",
+        album="The Album",
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes["media_title"] == "My Song"
+
+
+async def test_media_artist_network_now_playing(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test media artist from now playing info for network sources."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_now_playing_info.return_value = NowPlayingInfo(
+        title="Song",
+        artist="The Artist",
+        album="Album",
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes["media_artist"] == "The Artist"
+
+
+async def test_media_album_name_network(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test media album name from now playing info for network sources."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_now_playing_info.return_value = NowPlayingInfo(
+        title="Song",
+        artist="Artist",
+        album="The Album",
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes["media_album_name"] == "The Album"
+
+
+async def test_media_title_network_no_info(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test fallback when network source has no now playing info."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_now_playing_info.return_value = None
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes.get("media_title") == "NET"
+
+
+async def test_media_artist_dab_unchanged(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test DAB source still uses get_dls_pdt for media artist."""
+    mock_state_zone1.get_source.return_value = SourceCodes.DAB
+    mock_state_zone1.get_dls_pdt.return_value = "Now: Great Song"
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes["media_artist"] == "Now: Great Song"
+
+
+async def test_media_content_type_network(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test network source with now playing reports music content type."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_now_playing_info.return_value = NowPlayingInfo(
+        title="Song",
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes["media_content_type"] == MediaType.MUSIC
+
+
+# --- Companion artwork tests ---
+
+
+async def test_media_image_from_companion_cast(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test artwork is pulled from companion Cast entity on same host."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_now_playing_info.return_value = NowPlayingInfo(title="Song")
+
+    # Create companion Cast config entry with same host
+    cast_entry = MockConfigEntry(
+        domain="cast",
+        data={"host": MOCK_HOST, "port": 8009},
+        unique_id="cast-uuid",
+    )
+    cast_entry.add_to_hass(hass)
+
+    # Register companion entity in entity registry
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "media_player",
+        "cast",
+        "cast-uuid",
+        config_entry=cast_entry,
+        suggested_object_id="arcam_cast",
+    )
+
+    # Set companion state with artwork
+    hass.states.async_set("media_player.arcam_cast", "playing", {
+        "entity_picture": "https://cdn.example.com/artwork.jpg",
+    })
+
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes.get("entity_picture") == "https://cdn.example.com/artwork.jpg"
+
+
+async def test_media_image_no_companion(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test no artwork when no companion entity exists."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_now_playing_info.return_value = NowPlayingInfo(title="Song")
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes.get("entity_picture") is None
+
+
+async def test_media_image_non_network_source(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test no artwork lookup for non-network sources even with companion."""
+    mock_state_zone1.get_source.return_value = SourceCodes.BD
+
+    # Create companion with artwork
+    cast_entry = MockConfigEntry(
+        domain="cast",
+        data={"host": MOCK_HOST, "port": 8009},
+        unique_id="cast-uuid-2",
+    )
+    cast_entry.add_to_hass(hass)
+
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "media_player",
+        "cast",
+        "cast-uuid-2",
+        config_entry=cast_entry,
+        suggested_object_id="arcam_cast_2",
+    )
+
+    hass.states.async_set("media_player.arcam_cast_2", "playing", {
+        "entity_picture": "https://cdn.example.com/artwork.jpg",
+    })
+
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.attributes.get("entity_picture") is None

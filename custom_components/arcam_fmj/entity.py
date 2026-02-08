@@ -37,11 +37,19 @@ class ArcamFmjEntity(Entity):
     ) -> None:
         """Initialize the entity."""
         self._state = state
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, uuid)},
+        self._uuid = uuid
+        self._device_name = device_name
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info, using model name when available."""
+        model = self._state.model
+        name = f"Arcam {model}" if model else self._device_name
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._uuid)},
             manufacturer="Arcam",
-            model=state.model or "Arcam FMJ AVR",
-            name=device_name,
+            model=model or "Arcam FMJ AVR",
+            name=name,
         )
 
     async def async_added_to_hass(self) -> None:

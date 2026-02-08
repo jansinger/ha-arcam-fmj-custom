@@ -12,11 +12,11 @@ from homeassistant.helpers import entity_registry as er
 
 from .conftest import setup_integration
 
-ENTITY_BASS = "number.arcam_fmj_192_168_1_100_bass"
-ENTITY_TREBLE = "number.arcam_fmj_192_168_1_100_treble"
-ENTITY_BALANCE = "number.arcam_fmj_192_168_1_100_balance"
-ENTITY_SUB_TRIM = "number.arcam_fmj_192_168_1_100_subwoofer_trim"
-ENTITY_LIPSYNC = "number.arcam_fmj_192_168_1_100_lip_sync_delay"
+ENTITY_BASS = "number.arcam_av40_bass"
+ENTITY_TREBLE = "number.arcam_av40_treble"
+ENTITY_BALANCE = "number.arcam_av40_balance"
+ENTITY_SUB_TRIM = "number.arcam_av40_subwoofer_trim"
+ENTITY_LIPSYNC = "number.arcam_av40_lip_sync_delay"
 
 
 async def test_number_entities_created(

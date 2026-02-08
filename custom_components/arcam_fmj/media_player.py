@@ -23,13 +23,16 @@ from homeassistant.components.media_player import (
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ArcamFmjConfigEntry
-from .const import EVENT_TURN_ON
+from .const import DOMAIN, EVENT_TURN_ON
 from .entity import ArcamFmjEntity
 
 _LOGGER = logging.getLogger(__name__)
+
+NETWORK_SOURCES = {SourceCodes.NET, SourceCodes.USB, SourceCodes.BT, SourceCodes.NET_USB}
 
 
 async def async_setup_entry(
@@ -70,6 +73,7 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
     """Representation of a media device."""
 
     _attr_device_class = MediaPlayerDeviceClass.RECEIVER
+    _attr_media_image_remotely_accessible = True
 
     def __init__(
         self,
@@ -258,10 +262,12 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
         """Content type of current playing media."""
         source = self._state.get_source()
         if source in (SourceCodes.DAB, SourceCodes.FM):
-            value = MediaType.MUSIC
-        else:
-            value = None
-        return value
+            return MediaType.MUSIC
+        if source in NETWORK_SOURCES:
+            info = self._state.get_now_playing_info()
+            if info and info.title:
+                return MediaType.MUSIC
+        return None
 
     @property
     def media_content_id(self) -> str | None:
@@ -292,11 +298,24 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
     @property
     def media_artist(self) -> str | None:
         """Artist of current playing media, music track only."""
-        if self._state.get_source() == SourceCodes.DAB:
-            value = self._state.get_dls_pdt()
-        else:
-            value = None
-        return value
+        source = self._state.get_source()
+        if source in NETWORK_SOURCES:
+            info = self._state.get_now_playing_info()
+            if info and info.artist:
+                return info.artist
+        if source == SourceCodes.DAB:
+            return self._state.get_dls_pdt()
+        return None
+
+    @property
+    def media_album_name(self) -> str | None:
+        """Album name of current playing media."""
+        source = self._state.get_source()
+        if source in NETWORK_SOURCES:
+            info = self._state.get_now_playing_info()
+            if info and info.album:
+                return info.album
+        return None
 
     @property
     def media_title(self) -> str | None:
@@ -304,8 +323,55 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
         if (source := self._state.get_source()) is None:
             return None
 
+        if source in NETWORK_SOURCES:
+            info = self._state.get_now_playing_info()
+            if info and info.title:
+                return info.title
+
         if channel := self.media_channel:
-            value = f"{source.name} - {channel}"
-        else:
-            value = source.name
-        return value
+            return f"{source.name} - {channel}"
+        return source.name
+
+    @property
+    def media_image_url(self) -> str | None:
+        """Return artwork from a companion media player on the same host."""
+        if self._state.get_source() not in NETWORK_SOURCES:
+            return None
+        return self._find_companion_artwork()
+
+    def _find_companion_artwork(self) -> str | None:
+        """Find entity_picture from a companion media player on the same host."""
+        if not self.hass:
+            return None
+
+        host = self._state.client.host
+        registry = er.async_get(self.hass)
+
+        for state in self.hass.states.async_all("media_player"):
+            picture = state.attributes.get("entity_picture")
+            if not picture:
+                continue
+
+            entry = registry.async_get(state.entity_id)
+            if not entry or not entry.config_entry_id:
+                continue
+
+            config_entry = self.hass.config_entries.async_get_entry(
+                entry.config_entry_id
+            )
+            if not config_entry or config_entry.domain == DOMAIN:
+                continue
+
+            if self._host_in_config_entry(config_entry, host):
+                return picture
+
+        return None
+
+    @staticmethod
+    def _host_in_config_entry(config_entry, host: str) -> bool:
+        """Check if a config entry references the given host."""
+        for value in config_entry.data.values():
+            if isinstance(value, str):
+                if value == host or f"://{host}" in value:
+                    return True
+        return False

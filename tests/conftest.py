@@ -78,8 +78,17 @@ def _create_mock_state(zone: int, client: MagicMock) -> MagicMock:
     state.get_display_brightness.return_value = 2
     state.get_compression.return_value = 0
 
-    # Switch entity controls
-    state.get_room_eq.return_value = True
+    # Switch -> Select: Room EQ now returns int (0=Off, 1-3=presets)
+    state.get_room_eq.return_value = 1
+
+    # New HDA series getters
+    state.get_network_playback_status.return_value = None
+    state.get_dolby_audio.return_value = None
+    state.get_now_playing_info.return_value = None
+    state.get_bluetooth_status.return_value = None
+    state.get_room_eq_names.return_value = None
+    state.get_hdmi_settings.return_value = None
+    state.get_zone_settings.return_value = None
 
     # Async setters
     state.set_power = AsyncMock()
@@ -98,6 +107,7 @@ def _create_mock_state(zone: int, client: MagicMock) -> MagicMock:
     state.set_display_brightness = AsyncMock()
     state.set_compression = AsyncMock()
     state.set_room_eq = AsyncMock()
+    state.set_dolby_audio = AsyncMock()
 
     return state
 

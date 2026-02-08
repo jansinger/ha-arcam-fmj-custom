@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import logging
 from typing import Any
 
-from arcam.fmj import ConnectionFailed
+from arcam.fmj import ConnectionFailed, DolbyAudioMode
 from arcam.fmj.state import State
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
@@ -35,6 +35,22 @@ COMPRESSION_OPTIONS = {
     1: "Light",
     2: "Medium",
     3: "Heavy",
+}
+
+# Room EQ presets: protocol value -> label
+ROOM_EQ_OPTIONS = {
+    0: "Off",
+    1: "Preset 1",
+    2: "Preset 2",
+    3: "Preset 3",
+}
+
+# Dolby Audio modes: protocol value -> label
+DOLBY_AUDIO_OPTIONS = {
+    0: "Off",
+    1: "Movie",
+    2: "Music",
+    3: "Night",
 }
 
 
@@ -66,6 +82,27 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
         options=list(COMPRESSION_OPTIONS.values()),
         get_value=lambda state: state.get_compression(),
         set_value=lambda state, value: state.set_compression(value),
+    ),
+    ArcamSelectEntityDescription(
+        key="room_eq",
+        translation_key="room_eq",
+        entity_category=EntityCategory.CONFIG,
+        options_map=ROOM_EQ_OPTIONS,
+        options=list(ROOM_EQ_OPTIONS.values()),
+        get_value=lambda state: state.get_room_eq(),
+        set_value=lambda state, value: state.set_room_eq(value),
+    ),
+    ArcamSelectEntityDescription(
+        key="dolby_audio",
+        translation_key="dolby_audio",
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
+        options_map=DOLBY_AUDIO_OPTIONS,
+        options=list(DOLBY_AUDIO_OPTIONS.values()),
+        get_value=lambda state: (
+            int(v) if (v := state.get_dolby_audio()) is not None else None
+        ),
+        set_value=lambda state, value: state.set_dolby_audio(DolbyAudioMode(value)),
     ),
 ]
 
