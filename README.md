@@ -135,6 +135,11 @@ All Arcam devices with IP control:
 
 ## Changelog
 
+### v2.3.0
+- **Fix: Sound mode list** — Mode list now matches active decode mode type (MCH vs 2CH), fixing "unknown" mode when MCH is active with PCM audio
+- **Fix: MCH mode naming** — MCH 0x03 correctly displayed as "Dts Neural X" instead of "Dolby D Ex Or Dts Es"
+- **Fix: Sound mode fallback** — Current mode always appears in dropdown, even when it comes from fallback enum
+
 ### v2.2.0
 - **Fix: Bass/Treble/Balance values** — Correct sign-magnitude decoding per Arcam protocol (was showing -14 instead of 0 at neutral)
 - **Fix: Value ranges** — Bass/Treble: -12 to +12 dB, Balance: -6 to +6, Sub Trim: -10 to +10 dB (0.5 steps), Lipsync: 0-250 ms
