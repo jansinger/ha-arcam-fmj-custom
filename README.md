@@ -135,6 +135,9 @@ All Arcam devices with IP control:
 
 ## Changelog
 
+### v2.3.1
+- **Fix: API model detection** — Device API model (HDA/860/450 series) is now resolved from detected model name before creating State objects, fixing wrong sound mode lists on HDA series devices (AV40, AVR30, etc.)
+
 ### v2.3.0
 - **Fix: Sound mode list** — Mode list now matches active decode mode type (MCH vs 2CH), fixing "unknown" mode when MCH is active with PCM audio
 - **Fix: MCH mode naming** — MCH 0x03 correctly displayed as "Dts Neural X" instead of "Dolby D Ex Or Dts Es"

@@ -6,7 +6,17 @@ from dataclasses import dataclass
 import logging
 from typing import Any
 
-from arcam.fmj import AmxDuetRequest, ConnectionFailed
+from arcam.fmj import (
+    APIVERSION_450_SERIES,
+    APIVERSION_860_SERIES,
+    APIVERSION_HDA_SERIES,
+    APIVERSION_PA_SERIES,
+    APIVERSION_SA_SERIES,
+    APIVERSION_ST_SERIES,
+    AmxDuetRequest,
+    ApiModel,
+    ConnectionFailed,
+)
 from arcam.fmj.client import Client
 from arcam.fmj.state import State
 
@@ -73,18 +83,36 @@ async def _fetch_device_name(client: Client) -> str | None:
     return None
 
 
+def _resolve_api_model(model: str | None) -> ApiModel:
+    """Resolve device model name to API model enum."""
+    if model:
+        if model in APIVERSION_HDA_SERIES:
+            return ApiModel.APIHDA_SERIES
+        if model in APIVERSION_860_SERIES:
+            return ApiModel.API860_SERIES
+        if model in APIVERSION_SA_SERIES:
+            return ApiModel.APISA_SERIES
+        if model in APIVERSION_PA_SERIES:
+            return ApiModel.APIPA_SERIES
+        if model in APIVERSION_ST_SERIES:
+            return ApiModel.APIST_SERIES
+    return ApiModel.API450_SERIES
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ArcamFmjConfigEntry) -> bool:
     """Set up config entry."""
     client = Client(entry.data[CONF_HOST], entry.data[CONF_PORT])
-    state_zone1 = State(client, 1)
-    state_zone2 = State(client, 2)
+
+    # Fetch model name before creating State objects so api_model is correct
+    model = await _fetch_device_name(client)
+    device_name = f"Arcam {model}" if model else DEFAULT_NAME
+    api_model = _resolve_api_model(model)
+
+    state_zone1 = State(client, 1, api_model)
+    state_zone2 = State(client, 2, api_model)
 
     await state_zone1.start()
     await state_zone2.start()
-
-    # Fetch model name before creating entities so entity IDs are short
-    model = await _fetch_device_name(client)
-    device_name = f"Arcam {model}" if model else DEFAULT_NAME
 
     entry.runtime_data = ArcamFmjData(
         client=client,
