@@ -36,14 +36,6 @@ COMPRESSION_OPTIONS = {
     3: "Heavy",
 }
 
-# Room EQ presets: protocol value -> label
-ROOM_EQ_OPTIONS = {
-    0: "Off",
-    1: "Preset 1",
-    2: "Preset 2",
-    3: "Preset 3",
-}
-
 # Dolby Audio modes: protocol value -> label
 DOLBY_AUDIO_OPTIONS = {
     0: "Off",
@@ -81,14 +73,6 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
         set_value=lambda state, value: state.set_compression(value),
     ),
     ArcamSelectEntityDescription(
-        key="room_eq",
-        translation_key="room_eq",
-        options_map=ROOM_EQ_OPTIONS,
-        options=list(ROOM_EQ_OPTIONS.values()),
-        get_value=lambda state: state.get_room_eq(),
-        set_value=lambda state, value: state.set_room_eq(value),
-    ),
-    ArcamSelectEntityDescription(
         key="dolby_audio",
         translation_key="dolby_audio",
         entity_registry_enabled_default=False,
@@ -115,6 +99,11 @@ async def async_setup_entry(
         ArcamSelectEntity(data.device_name, data.state_zone1, uuid, description)
         for description in SELECT_DESCRIPTIONS
     ]
+
+    # Room EQ with dynamic preset names from device
+    entities.append(
+        ArcamRoomEqSelectEntity(data.device_name, data.state_zone1, uuid)
+    )
 
     # Sound mode (decode mode) for Zone 1 — dynamic options based on audio input
     entities.append(
@@ -161,6 +150,80 @@ class ArcamSelectEntity(ArcamFmjEntity, SelectEntity):
         except ConnectionFailed as exception:
             raise HomeAssistantError(
                 f"Connection failed during {self.entity_description.key}"
+            ) from exception
+        self.async_write_ha_state()
+
+
+class ArcamRoomEqSelectEntity(ArcamFmjEntity, SelectEntity):
+    """Select entity for Room EQ with dynamic preset names from device."""
+
+    _attr_name = "Room EQ"
+    _FALLBACK_NAMES = {1: "Preset 1", 2: "Preset 2", 3: "Preset 3"}
+
+    def __init__(
+        self,
+        device_name: str,
+        state: State,
+        uuid: str,
+    ) -> None:
+        """Initialize the Room EQ select entity."""
+        super().__init__(device_name, state, uuid)
+        self._attr_unique_id = f"{uuid}-{state.zn}-room_eq"
+
+    def _preset_label(self, index: int) -> str:
+        """Get the display label for a preset index (1-3)."""
+        names = self._state.get_room_eq_names()
+        if names:
+            name = getattr(names, f"eq{index}", None)
+            if name:
+                return name
+        return self._FALLBACK_NAMES[index]
+
+    def _build_options_map(self) -> dict[int, str]:
+        """Build protocol value -> display label map with unique labels."""
+        labels: dict[int, str] = {0: "Off"}
+        raw_labels = {i: self._preset_label(i) for i in (1, 2, 3)}
+
+        # Count occurrences to detect duplicates
+        counts: dict[str, int] = {}
+        for label in raw_labels.values():
+            counts[label] = counts.get(label, 0) + 1
+
+        for i in (1, 2, 3):
+            label = raw_labels[i]
+            if counts[label] > 1 or label == "Off":
+                labels[i] = f"{label} (Preset {i})"
+            else:
+                labels[i] = label
+
+        return labels
+
+    @property
+    def options(self) -> list[str]:
+        """Return available Room EQ options with device preset names."""
+        return list(self._build_options_map().values())
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the current Room EQ setting."""
+        raw = self._state.get_room_eq()
+        if raw is None:
+            return None
+        return self._build_options_map().get(raw)
+
+    async def async_select_option(self, option: str) -> None:
+        """Set the Room EQ preset."""
+        options_map = self._build_options_map()
+        reverse = {v: k for k, v in options_map.items()}
+        raw = reverse.get(option)
+        if raw is None:
+            _LOGGER.error("Unknown Room EQ option: %s", option)
+            return
+        try:
+            await self._state.set_room_eq(raw)
+        except ConnectionFailed as exception:
+            raise HomeAssistantError(
+                "Connection failed during room_eq"
             ) from exception
         self.async_write_ha_state()
 

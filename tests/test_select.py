@@ -155,18 +155,65 @@ async def test_room_eq_select_entity_created(
     assert state is not None
 
 
-async def test_room_eq_select_value(
+async def test_room_eq_select_fallback_names(
     hass: HomeAssistant,
     mock_config_entry,
     mock_setup_entry,
     mock_state_zone1,
 ):
-    """Test room EQ shows correct preset label."""
+    """Test room EQ uses fallback Preset names when device names unavailable."""
     mock_state_zone1.get_room_eq.return_value = 1
+    mock_state_zone1.get_room_eq_names.return_value = None
     await setup_integration(hass, mock_config_entry)
 
     state = hass.states.get(ENTITY_ROOM_EQ)
     assert state.state == "Preset 1"
+    assert state.attributes["options"] == ["Off", "Preset 1", "Preset 2", "Preset 3"]
+
+
+async def test_room_eq_select_device_names(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test room EQ uses actual preset names from device."""
+    names = MagicMock()
+    names.eq1 = "Music"
+    names.eq2 = "Movie"
+    names.eq3 = "Game"
+    mock_state_zone1.get_room_eq_names.return_value = names
+    mock_state_zone1.get_room_eq.return_value = 1
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ROOM_EQ)
+    assert state.state == "Music"
+    assert state.attributes["options"] == ["Off", "Music", "Movie", "Game"]
+
+
+async def test_room_eq_select_duplicate_names(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test room EQ disambiguates duplicate preset names."""
+    names = MagicMock()
+    names.eq1 = "Music"
+    names.eq2 = "Not Calculated"
+    names.eq3 = "Not Calculated"
+    mock_state_zone1.get_room_eq_names.return_value = names
+    mock_state_zone1.get_room_eq.return_value = 2
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ROOM_EQ)
+    assert state.state == "Not Calculated (Preset 2)"
+    assert state.attributes["options"] == [
+        "Off",
+        "Music",
+        "Not Calculated (Preset 2)",
+        "Not Calculated (Preset 3)",
+    ]
 
 
 async def test_room_eq_select_off(
@@ -183,29 +230,24 @@ async def test_room_eq_select_off(
     assert state.state == "Off"
 
 
-async def test_room_eq_select_options(
-    hass: HomeAssistant, mock_config_entry, mock_setup_entry
-):
-    """Test room EQ options list."""
-    await setup_integration(hass, mock_config_entry)
-
-    state = hass.states.get(ENTITY_ROOM_EQ)
-    assert state.attributes["options"] == ["Off", "Preset 1", "Preset 2", "Preset 3"]
-
-
-async def test_set_room_eq_preset(
+async def test_set_room_eq_device_name(
     hass: HomeAssistant,
     mock_config_entry,
     mock_setup_entry,
     mock_state_zone1,
 ):
-    """Test setting room EQ to a preset."""
+    """Test setting room EQ with device preset name sends correct value."""
+    names = MagicMock()
+    names.eq1 = "Music"
+    names.eq2 = "Movie"
+    names.eq3 = "Game"
+    mock_state_zone1.get_room_eq_names.return_value = names
     await setup_integration(hass, mock_config_entry)
 
     await hass.services.async_call(
         "select",
         "select_option",
-        {ATTR_ENTITY_ID: ENTITY_ROOM_EQ, "option": "Preset 2"},
+        {ATTR_ENTITY_ID: ENTITY_ROOM_EQ, "option": "Movie"},
         blocking=True,
     )
 
@@ -248,7 +290,7 @@ async def test_room_eq_select_none(
 async def test_room_eq_select_config_category(
     hass: HomeAssistant, mock_config_entry, mock_setup_entry
 ):
-    """Test room EQ has config entity category."""
+    """Test room EQ has no entity category."""
     await setup_integration(hass, mock_config_entry)
 
     registry = er.async_get(hass)

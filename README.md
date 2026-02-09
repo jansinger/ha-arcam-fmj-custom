@@ -135,6 +135,9 @@ All Arcam devices with IP control:
 
 ## Changelog
 
+### v2.4.0
+- **Room EQ preset names** — Room EQ select shows actual preset names from device (e.g. "Music") instead of generic "Preset 1/2/3". Duplicate names are disambiguated automatically.
+
 ### v2.3.1
 - **Fix: API model detection** — Device API model (HDA/860/450 series) is now resolved from detected model name before creating State objects, fixing wrong sound mode lists on HDA series devices (AV40, AVR30, etc.)
 
