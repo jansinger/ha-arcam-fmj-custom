@@ -76,6 +76,8 @@ cards:
 
   - type: entities
     entities:
+      - entity: select.arcam_av40_zone_1_source
+        name: Source
       - entity: select.arcam_av40_sound_mode
         name: Sound Mode
       - entity: select.arcam_av40_room_eq
@@ -110,6 +112,8 @@ cards:
 
   - type: entities
     entities:
+      - entity: select.arcam_av40_zone_1_source
+        name: Source
       - entity: select.arcam_av40_sound_mode
         name: Sound Mode
       - entity: select.arcam_av40_room_eq

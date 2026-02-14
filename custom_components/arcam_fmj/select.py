@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import logging
 from typing import Any
 
-from arcam.fmj import ConnectionFailed, DolbyAudioMode
+from arcam.fmj import ConnectionFailed, DolbyAudioMode, SourceCodes
 from arcam.fmj.state import State
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
@@ -109,6 +109,13 @@ async def async_setup_entry(
     entities.append(
         ArcamSoundModeSelectEntity(data.device_name, data.state_zone1, uuid)
     )
+
+    # Source select for Zone 1 and Zone 2
+    for state in (data.state_zone1, data.state_zone2):
+        if state.get_source_list():
+            entities.append(
+                ArcamSourceSelectEntity(data.device_name, state, uuid)
+            )
 
     async_add_entities(entities)
 
@@ -285,5 +292,47 @@ class ArcamSoundModeSelectEntity(ArcamFmjEntity, SelectEntity):
         except ConnectionFailed as exception:
             raise HomeAssistantError(
                 "Connection failed during sound_mode"
+            ) from exception
+        self.async_write_ha_state()
+
+
+class ArcamSourceSelectEntity(ArcamFmjEntity, SelectEntity):
+    """Select entity for Arcam input source."""
+
+    def __init__(
+        self,
+        device_name: str,
+        state: State,
+        uuid: str,
+    ) -> None:
+        """Initialize the source select entity."""
+        super().__init__(device_name, state, uuid)
+        self._attr_name = f"Zone {state.zn} Source"
+        self._attr_unique_id = f"{uuid}-{state.zn}-source"
+        self._attr_entity_registry_enabled_default = state.zn == 1
+
+    @property
+    def options(self) -> list[str]:
+        """Return available input sources."""
+        return [x.name for x in self._state.get_source_list()]
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the current input source."""
+        if (value := self._state.get_source()) is None:
+            return None
+        return value.name
+
+    async def async_select_option(self, option: str) -> None:
+        """Set the input source."""
+        try:
+            value = SourceCodes[option]
+        except KeyError:
+            raise HomeAssistantError(f"Unsupported source: {option}") from None
+        try:
+            await self._state.set_source(value)
+        except ConnectionFailed as exception:
+            raise HomeAssistantError(
+                "Connection failed during source selection"
             ) from exception
         self.async_write_ha_state()
