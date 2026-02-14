@@ -6,7 +6,7 @@ Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and ext
 
 - **Device model detection:** Automatically detects the actual device model (e.g. "AV40") via AMX Duet protocol for short, clean entity names
 - **Dashboard-ready:** Short entity names, works with [maxi-media-player](https://github.com/punxaphil/maxi-media-player), [stack-in-card](https://github.com/custom-cards/stack-in-card), and standard Lovelace cards
-- **Companion artwork:** Displays album art from Cast/DLNA entities on the same host
+- **Album artwork:** Automatic cover art lookup via iTunes Search API for music and podcasts on network sources (NET, USB, BT), with fallback to Cast/DLNA companion entities
 - **Now Playing Info:** Shows media title, artist, and album from network sources
 - **Diagnostic sensors:** Audio format, video resolution, network playback status, and more
 - **Audio controls:** Bass, Treble, Balance, Subwoofer Trim, Lip Sync Delay as number entities
@@ -152,8 +152,7 @@ template:
           } %}
           {% set current = states('select.arcam_av40_zone_1_source') %}
           {{ mapping.get(current, current) }}
-        options: >
-          {{ ['Apple TV', 'Fire TV', 'Playstation', 'Blu-ray'] }}
+        options: "{{ ['Apple TV', 'Fire TV', 'Playstation', 'Blu-ray'] }}"
         select_option:
           - variables:
               reverse_mapping:
@@ -185,6 +184,12 @@ All Arcam devices with IP control:
 - AVR390, AVR450, AVR550, AVR600, AVR750, AVR850, AVR860
 
 ## Changelog
+
+### v2.6.0
+- **Album artwork via iTunes** — Automatic cover art lookup for music albums and podcasts on network sources (NET, USB, BT). Uses the iTunes Search API (no authentication required). Results are cached in memory (24h for hits, 1h for misses). Falls back to companion media player artwork (Cast/DLNA) when iTunes has no result.
+
+### v2.5.0
+- **Source select entity** — Zone 1 and Zone 2 input source as separate select entities for dashboard cards
 
 ### v2.4.0
 - **Room EQ preset names** — Room EQ select shows actual preset names from device (e.g. "Music") instead of generic "Preset 1/2/3". Duplicate names are disambiguated automatically.

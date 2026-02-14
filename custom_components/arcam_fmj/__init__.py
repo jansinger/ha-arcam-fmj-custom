@@ -23,8 +23,10 @@ from arcam.fmj.state import State
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
+from .artwork import ArtworkLookup
 from .const import (
     DEFAULT_NAME,
     DEFAULT_SCAN_INTERVAL,
@@ -42,6 +44,7 @@ class ArcamFmjData:
     state_zone1: State
     state_zone2: State
     device_name: str
+    artwork: ArtworkLookup
 
 
 type ArcamFmjConfigEntry = ConfigEntry[ArcamFmjData]
@@ -119,6 +122,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ArcamFmjConfigEntry) -> 
         state_zone1=state_zone1,
         state_zone2=state_zone2,
         device_name=device_name,
+        artwork=ArtworkLookup(async_get_clientsession(hass)),
     )
 
     entry.async_create_background_task(

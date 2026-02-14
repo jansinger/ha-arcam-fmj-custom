@@ -21,13 +21,15 @@ from homeassistant.components.media_player import (
     MediaType,
 )
 from homeassistant.const import ATTR_ENTITY_ID
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ArcamFmjConfigEntry
-from .const import DOMAIN, EVENT_TURN_ON
+from .artwork import ArtworkLookup
+from .const import DOMAIN, EVENT_TURN_ON, SIGNAL_CLIENT_DATA
 from .entity import ArcamFmjEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,8 +48,8 @@ async def async_setup_entry(
 
     async_add_entities(
         [
-            ArcamFmj(data.device_name, data.state_zone1, uuid),
-            ArcamFmj(data.device_name, data.state_zone2, uuid),
+            ArcamFmj(data.device_name, data.state_zone1, uuid, data.artwork),
+            ArcamFmj(data.device_name, data.state_zone2, uuid, data.artwork),
         ],
     )
 
@@ -80,9 +82,13 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
         device_name: str,
         state: State,
         uuid: str,
+        artwork: ArtworkLookup,
     ) -> None:
         """Initialize device."""
         super().__init__(device_name, state, uuid)
+        self._artwork = artwork
+        self._artwork_url: str | None = None
+        self._artwork_key: tuple[str, str] | None = None
         self._attr_name = f"Zone {state.zn}"
         self._attr_supported_features = (
             MediaPlayerEntityFeature.SELECT_SOURCE
@@ -98,6 +104,74 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
             self._attr_supported_features |= MediaPlayerEntityFeature.SELECT_SOUND_MODE
         self._attr_unique_id = f"{uuid}-{state.zn}"
         self._attr_entity_registry_enabled_default = state.zn == 1
+
+    async def async_added_to_hass(self) -> None:
+        """Register artwork lookup on data updates."""
+        await super().async_added_to_hass()
+
+        @callback
+        def _check_artwork(host: str) -> None:
+            if host == self._state.client.host:
+                self._schedule_artwork_lookup()
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, SIGNAL_CLIENT_DATA, _check_artwork
+            )
+        )
+
+    @callback
+    def _schedule_artwork_lookup(self) -> None:
+        """Schedule async artwork lookup if metadata changed."""
+        source = self._state.get_source()
+        if source not in NETWORK_SOURCES:
+            self._artwork_url = None
+            self._artwork_key = None
+            return
+
+        info = self._state.get_now_playing_info()
+        if not info:
+            self._artwork_url = None
+            self._artwork_key = None
+            return
+
+        artist = info.artist or ""
+        album = info.album or ""
+        title = info.title or ""
+
+        if artist and album:
+            key = (artist, album)
+        elif title:
+            key = ("__podcast__", title)
+        else:
+            self._artwork_url = None
+            self._artwork_key = None
+            return
+
+        if key == self._artwork_key:
+            return
+
+        self._artwork_key = key
+        self._artwork_url = None
+        self.hass.async_create_task(
+            self._async_fetch_artwork(artist, album, title)
+        )
+
+    async def _async_fetch_artwork(
+        self, artist: str, album: str, title: str
+    ) -> None:
+        """Fetch artwork from iTunes and update state."""
+        try:
+            if artist and album:
+                url = await self._artwork.get_album_artwork(artist, album)
+            else:
+                url = await self._artwork.get_podcast_artwork(title)
+        except Exception:
+            _LOGGER.debug("Artwork lookup failed", exc_info=True)
+            url = None
+
+        self._artwork_url = url
+        self.async_write_ha_state()
 
     @property
     def state(self) -> MediaPlayerState:
@@ -334,9 +408,11 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
 
     @property
     def media_image_url(self) -> str | None:
-        """Return artwork from a companion media player on the same host."""
+        """Return artwork: iTunes lookup first, then companion media player."""
         if self._state.get_source() not in NETWORK_SOURCES:
             return None
+        if self._artwork_url:
+            return self._artwork_url
         return self._find_companion_artwork()
 
     def _find_companion_artwork(self) -> str | None:
