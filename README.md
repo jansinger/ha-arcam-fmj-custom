@@ -187,6 +187,7 @@ All Arcam devices with IP control:
 
 ### v2.6.0
 - **Album artwork via iTunes** — Automatic cover art lookup for music albums and podcasts on network sources (NET, USB, BT). Uses the iTunes Search API (no authentication required). Results are cached in memory (24h for hits, 1h for misses). Falls back to companion media player artwork (Cast/DLNA) when iTunes has no result.
+- **Fix: Sound mode with multichannel PCM** — Multichannel PCM (e.g. PCM 3/2.1) was incorrectly classified as 2-channel, causing wrong decode mode display (e.g. "Stereo" instead of "Dolby Surround"). Now checks the actual channel configuration.
 
 ### v2.5.0
 - **Source select entity** — Zone 1 and Zone 2 input source as separate select entities for dashboard cards
