@@ -29,6 +29,8 @@ Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and ext
 | Select | Display Brightness | Enabled | Off / Level 1 / Level 2 / Level 3 |
 | Select | Room EQ | Enabled | Off / Preset 1 / Preset 2 / Preset 3 |
 | Select | Compression | Disabled | Off / Light / Medium / Heavy |
+| Select | Zone 1 Source | Enabled | Input source selection (SAT, HDMI1, BD, etc.) |
+| Select | Zone 2 Source | Disabled | Input source selection for Zone 2 |
 | Select | Sound Mode | Enabled | Stereo Downmix, Multi Channel, Dolby Surround, etc. |
 | Select | Dolby Audio | Disabled | Off / Movie / Music / Night |
 | Sensor | Audio Input Format | Enabled | Dolby Atmos, DTS:X, PCM, etc. |
@@ -129,6 +131,51 @@ cards:
 ```
 
 > **Note:** Entity IDs depend on your device model (e.g. `arcam_av40`, `arcam_avr30`). Adjust to match your setup. Audio controls (number/select) are separate entities and must be added to the card explicitly — media player cards only show their own controls (volume, source, sound mode).
+
+### Custom Source Names (Template Select Helper)
+
+The source select entity exposes the technical Arcam input names (e.g. `SAT`, `HDMI1`, `BD`). You can create a **Template Select** helper to show only the sources you actually use and give them friendly names.
+
+Add the following to your Home Assistant **main `configuration.yaml`** (typically at `/homeassistant/configuration.yaml` or `config/configuration.yaml` — the same file where you configure other HA integrations, not a file within this custom component):
+
+```yaml
+template:
+  - select:
+      - name: "AV40 Eingang"
+        unique_id: av40_source_friendly
+        state: >
+          {% set mapping = {
+            'SAT': 'Apple TV',
+            'HDMI1': 'Fire TV',
+            'HDMI2': 'Playstation',
+            'BD': 'Blu-ray',
+          } %}
+          {% set current = states('select.arcam_av40_zone_1_source') %}
+          {{ mapping.get(current, current) }}
+        options: >
+          {{ ['Apple TV', 'Fire TV', 'Playstation', 'Blu-ray'] }}
+        select_option:
+          - variables:
+              reverse_mapping:
+                Apple TV: SAT
+                Fire TV: HDMI1
+                Playstation: HDMI2
+                Blu-ray: BD
+          - action: select.select_option
+            target:
+              entity_id: select.arcam_av40_zone_1_source
+            data:
+              option: "{{ reverse_mapping[option] }}"
+```
+
+**How to customize:**
+- Check **Developer Tools → States** in HA for `select.arcam_av40_zone_1_source` to see the available source names (e.g. `SAT`, `HDMI1`, `HDMI2`, `BD`, `AV`, `STB`, `PVR`, `AUX`, `NET`, `USB`, `BT`)
+- Replace the left side of the mapping (`SAT`, `HDMI1`, ...) with the sources you use
+- Replace the right side (`Apple TV`, `Fire TV`, ...) with your preferred display names
+- Only include the sources you want to see — the rest will be hidden
+- After editing, reload Template entities via **Developer Tools → YAML → Template entities** (no restart required)
+
+Then use `select.av40_eingang` instead of `select.arcam_av40_zone_1_source` in your dashboard cards.
 
 ## Affected Devices
 
