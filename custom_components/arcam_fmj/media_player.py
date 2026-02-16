@@ -160,7 +160,7 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
     async def _async_fetch_artwork(
         self, artist: str, album: str, title: str
     ) -> None:
-        """Fetch artwork from iTunes and update state."""
+        """Fetch artwork from iTunes (with companion fallback) and update state."""
         try:
             if artist and album:
                 url = await self._artwork.get_album_artwork(artist, album)
@@ -169,6 +169,9 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
         except Exception:
             _LOGGER.debug("Artwork lookup failed", exc_info=True)
             url = None
+
+        if not url:
+            url = self._find_companion_artwork()
 
         self._artwork_url = url
         self.async_write_ha_state()
@@ -408,12 +411,10 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
 
     @property
     def media_image_url(self) -> str | None:
-        """Return artwork: iTunes lookup first, then companion media player."""
+        """Return cached artwork URL (resolved asynchronously)."""
         if self._state.get_source() not in NETWORK_SOURCES:
             return None
-        if self._artwork_url:
-            return self._artwork_url
-        return self._find_companion_artwork()
+        return self._artwork_url
 
     def _find_companion_artwork(self) -> str | None:
         """Find entity_picture from a companion media player on the same host."""
