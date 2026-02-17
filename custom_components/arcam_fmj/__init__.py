@@ -7,15 +7,10 @@ import logging
 from typing import Any
 
 from arcam.fmj import (
-    APIVERSION_450_SERIES,
-    APIVERSION_860_SERIES,
-    APIVERSION_HDA_SERIES,
-    APIVERSION_PA_SERIES,
-    APIVERSION_SA_SERIES,
-    APIVERSION_ST_SERIES,
     AmxDuetRequest,
     ApiModel,
     ConnectionFailed,
+    detect_api_model,
 )
 from arcam.fmj.client import Client
 from arcam.fmj.state import State
@@ -89,16 +84,9 @@ async def _fetch_device_name(client: Client) -> str | None:
 def _resolve_api_model(model: str | None) -> ApiModel:
     """Resolve device model name to API model enum."""
     if model:
-        if model in APIVERSION_HDA_SERIES:
-            return ApiModel.APIHDA_SERIES
-        if model in APIVERSION_860_SERIES:
-            return ApiModel.API860_SERIES
-        if model in APIVERSION_SA_SERIES:
-            return ApiModel.APISA_SERIES
-        if model in APIVERSION_PA_SERIES:
-            return ApiModel.APIPA_SERIES
-        if model in APIVERSION_ST_SERIES:
-            return ApiModel.APIST_SERIES
+        result = detect_api_model(model)
+        if result is not None:
+            return result
     return ApiModel.API450_SERIES
 
 

@@ -20,20 +20,18 @@ from .entity import ArcamFmjEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-# Display brightness levels: protocol value -> label
+# Display brightness levels: protocol value -> label (0-2 per spec)
 DISPLAY_BRIGHTNESS_OPTIONS = {
     0: "Off",
     1: "Level 1",
     2: "Level 2",
-    3: "Level 3",
 }
 
-# Compression modes: protocol value -> label
+# Compression modes: protocol value -> label (0-2 per spec)
 COMPRESSION_OPTIONS = {
     0: "Off",
     1: "Light",
     2: "Medium",
-    3: "Heavy",
 }
 
 # Dolby Audio modes: protocol value -> label
