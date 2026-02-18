@@ -10,8 +10,14 @@ from arcam.fmj.client import Client, ConnectionFailed
 from arcam.fmj.utils import get_uniqueid_from_host, get_uniqueid_from_udn
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+    OptionsFlowWithConfigEntry,
+)
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.ssdp import ATTR_UPNP_UDN, SsdpServiceInfo
 
@@ -25,6 +31,14 @@ class ArcamFmjFlowHandler(ConfigFlow, domain=DOMAIN):
 
     host: str
     port: int
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry,
+    ) -> OptionsFlow:
+        """Create the options flow."""
+        return ArcamFmjOptionsFlowHandler(config_entry)
 
     async def _async_set_unique_id_and_update(
         self, host: str, port: int, uuid: str
@@ -118,3 +132,30 @@ class ArcamFmjFlowHandler(ConfigFlow, domain=DOMAIN):
         self.host = host
         self.port = DEFAULT_PORT
         return await self.async_step_confirm()
+
+
+class ArcamFmjOptionsFlowHandler(OptionsFlowWithConfigEntry):
+    """Handle options flow for Arcam FMJ."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage integration options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        "poll_interval",
+                        default=self.options.get("poll_interval", 10),
+                    ): vol.All(int, vol.Range(min=5, max=60)),
+                    vol.Optional(
+                        "zone2_enabled",
+                        default=self.options.get("zone2_enabled", True),
+                    ): bool,
+                }
+            ),
+        )

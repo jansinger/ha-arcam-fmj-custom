@@ -6,7 +6,7 @@ Skipped automatically when --device is not provided.
 
 import asyncio
 import contextlib
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_socket
@@ -99,6 +99,11 @@ async def live_integration(hass, device_host, device_port, live_state):
     state_z1 = live_state["state_z1"]
     state_z2 = live_state["state_z2"]
     model = live_state["model"]
+
+    # Ensure hass.http exists for static path registration
+    if not hasattr(hass, "http") or hass.http is None:
+        hass.http = MagicMock()
+    hass.http.async_register_static_paths = AsyncMock()
 
     entry = MockConfigEntry(
         domain=DOMAIN,

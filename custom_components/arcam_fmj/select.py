@@ -12,6 +12,7 @@ from arcam.fmj import ConnectionFailed, DolbyAudioMode, SourceCodes
 from arcam.fmj.state import State
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -57,6 +58,7 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
     ArcamSelectEntityDescription(
         key="display_brightness",
         translation_key="display_brightness",
+        entity_category=EntityCategory.CONFIG,
         options_map=DISPLAY_BRIGHTNESS_OPTIONS,
         options=list(DISPLAY_BRIGHTNESS_OPTIONS.values()),
         get_value=lambda state: state.get_display_brightness(),
@@ -65,6 +67,7 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
     ArcamSelectEntityDescription(
         key="compression",
         translation_key="compression",
+        entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         options_map=COMPRESSION_OPTIONS,
         options=list(COMPRESSION_OPTIONS.values()),
@@ -74,6 +77,7 @@ SELECT_DESCRIPTIONS: list[ArcamSelectEntityDescription] = [
     ArcamSelectEntityDescription(
         key="dolby_audio",
         translation_key="dolby_audio",
+        entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         options_map=DOLBY_AUDIO_OPTIONS,
         options=list(DOLBY_AUDIO_OPTIONS.values()),
@@ -109,8 +113,12 @@ async def async_setup_entry(
         ArcamSoundModeSelectEntity(data.device_name, data.state_zone1, uuid)
     )
 
-    # Source select for Zone 1 and Zone 2
-    for state in (data.state_zone1, data.state_zone2):
+    # Source select for Zone 1 and (optionally) Zone 2
+    zone2_enabled = config_entry.options.get("zone2_enabled", True)
+    zone_states = [data.state_zone1]
+    if zone2_enabled:
+        zone_states.append(data.state_zone2)
+    for state in zone_states:
         if state.get_source_list():
             entities.append(
                 ArcamSourceSelectEntity(data.device_name, state, uuid)
@@ -167,6 +175,7 @@ class ArcamRoomEqSelectEntity(ArcamFmjEntity, SelectEntity):
     """Select entity for Room EQ with dynamic preset names from device."""
 
     _attr_name = "Room EQ"
+    _attr_entity_category = EntityCategory.CONFIG
     _FALLBACK_NAMES = {1: "Preset 1", 2: "Preset 2", 3: "Preset 3"}
 
     def __init__(

@@ -8,7 +8,7 @@ import functools
 import logging
 from typing import Any
 
-from arcam.fmj import ConnectionFailed, SourceCodes
+from arcam.fmj import ConnectionFailed, NetworkPlaybackStatus, SourceCodes
 from arcam.fmj.state import State
 
 from homeassistant.components.media_player import (
@@ -28,7 +28,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import ArcamFmjConfigEntry
+from . import STATIC_URL_PREFIX, ArcamFmjConfigEntry
 from .artwork import ArtworkLookup
 from .const import DOMAIN, EVENT_TURN_ON, SIGNAL_CLIENT_DATA
 from .entity import ArcamFmjEntity
@@ -36,6 +36,30 @@ from .entity import ArcamFmjEntity
 _LOGGER = logging.getLogger(__name__)
 
 NETWORK_SOURCES = {SourceCodes.NET, SourceCodes.USB, SourceCodes.BT, SourceCodes.NET_USB}
+
+# Mapping from SourceCodes to SVG icon filenames for non-streaming sources
+SOURCE_IMAGE_MAP: dict[SourceCodes, str] = {
+    SourceCodes.CD: "cd",
+    SourceCodes.BD: "bd",
+    SourceCodes.AV: "av",
+    SourceCodes.SAT: "sat",
+    SourceCodes.PVR: "pvr",
+    SourceCodes.VCR: "av",
+    SourceCodes.AUX: "aux",
+    SourceCodes.FM: "fm",
+    SourceCodes.DAB: "dab",
+    SourceCodes.STB: "stb",
+    SourceCodes.GAME: "game",
+    SourceCodes.PHONO: "phono",
+    SourceCodes.ARC_ERC: "av",
+    SourceCodes.UHD: "uhd",
+    SourceCodes.BT: "bt",
+    SourceCodes.DIG1: "dig",
+    SourceCodes.DIG2: "dig",
+    SourceCodes.DIG3: "dig",
+    SourceCodes.DIG4: "dig",
+    SourceCodes.DISPLAY: "default",
+}
 
 
 async def async_setup_entry(
@@ -47,12 +71,12 @@ async def async_setup_entry(
     data = config_entry.runtime_data
     uuid = config_entry.unique_id or config_entry.entry_id
 
-    async_add_entities(
-        [
-            ArcamFmj(data.device_name, data.state_zone1, uuid, data.artwork),
-            ArcamFmj(data.device_name, data.state_zone2, uuid, data.artwork),
-        ],
-    )
+    entities = [ArcamFmj(data.device_name, data.state_zone1, uuid, data.artwork)]
+    if config_entry.options.get("zone2_enabled", True):
+        entities.append(
+            ArcamFmj(data.device_name, data.state_zone2, uuid, data.artwork)
+        )
+    async_add_entities(entities)
 
 
 def convert_exception[**_P, _R](
@@ -78,7 +102,6 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
     """Representation of a media device."""
 
     _attr_device_class = MediaPlayerDeviceClass.RECEIVER
-    _attr_media_image_remotely_accessible = True
 
     def __init__(
         self,
@@ -182,9 +205,17 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
     @property
     def state(self) -> MediaPlayerState:
         """Return the state of the device."""
-        if self._state.get_power() is True:
-            return MediaPlayerState.ON
-        return MediaPlayerState.OFF
+        if self._state.get_power() is not True:
+            return MediaPlayerState.OFF
+        # Enrich state for network sources with playback status
+        source = self._state.get_source()
+        if source in NETWORK_SOURCES:
+            status = self._state.get_network_playback_status()
+            if status == NetworkPlaybackStatus.PLAYING:
+                return MediaPlayerState.PLAYING
+            if status == NetworkPlaybackStatus.PAUSED:
+                return MediaPlayerState.PAUSED
+        return MediaPlayerState.ON
 
     @convert_exception
     async def async_mute_volume(self, mute: bool) -> None:
@@ -414,10 +445,21 @@ class ArcamFmj(ArcamFmjEntity, MediaPlayerEntity):
 
     @property
     def media_image_url(self) -> str | None:
-        """Return cached artwork URL (resolved asynchronously)."""
-        if self._state.get_source() not in NETWORK_SOURCES:
-            return None
-        return self._artwork_url
+        """Return artwork URL for network sources, or source icon for others."""
+        source = self._state.get_source()
+        if source in NETWORK_SOURCES:
+            return self._artwork_url
+        if source is not None and source in SOURCE_IMAGE_MAP:
+            return f"{STATIC_URL_PREFIX}/{SOURCE_IMAGE_MAP[source]}.svg"
+        return None
+
+    @property
+    def media_image_remotely_accessible(self) -> bool:
+        """Return True only when using a remote artwork URL (e.g. iTunes)."""
+        source = self._state.get_source()
+        if source in NETWORK_SOURCES and self._artwork_url:
+            return True
+        return False
 
     def _find_companion_artwork(self) -> str | None:
         """Find entity_picture from a companion media player on the same host."""

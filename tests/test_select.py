@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from arcam.fmj import ConnectionFailed
 
-from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.const import ATTR_ENTITY_ID, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
@@ -99,13 +99,16 @@ async def test_set_display_brightness_off(
 async def test_select_config_category(
     hass: HomeAssistant, mock_config_entry, mock_setup_entry
 ):
-    """Test select entities have config entity category."""
+    """Test configuration select entities have CONFIG entity category."""
     await setup_integration(hass, mock_config_entry)
 
     registry = er.async_get(hass)
-    entry = registry.async_get(ENTITY_BRIGHTNESS)
-    assert entry is not None
-    assert entry.entity_category is None
+
+    # Display brightness, compression, dolby_audio should be CONFIG
+    for entity_id in (ENTITY_BRIGHTNESS,):
+        entry = registry.async_get(entity_id)
+        assert entry is not None
+        assert entry.entity_category == EntityCategory.CONFIG
 
 
 async def test_select_none_value(
@@ -290,13 +293,13 @@ async def test_room_eq_select_none(
 async def test_room_eq_select_config_category(
     hass: HomeAssistant, mock_config_entry, mock_setup_entry
 ):
-    """Test room EQ has no entity category."""
+    """Test room EQ has CONFIG entity category."""
     await setup_integration(hass, mock_config_entry)
 
     registry = er.async_get(hass)
     entry = registry.async_get(ENTITY_ROOM_EQ)
     assert entry is not None
-    assert entry.entity_category is None
+    assert entry.entity_category == EntityCategory.CONFIG
 
 
 async def test_room_eq_select_connection_error(

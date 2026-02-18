@@ -5,6 +5,7 @@ from asyncio import timeout
 import contextlib
 from dataclasses import dataclass
 import logging
+from pathlib import Path
 from typing import Any
 
 from arcam.fmj import (
@@ -17,6 +18,7 @@ from arcam.fmj import (
 from arcam.fmj.client import Client
 from arcam.fmj.state import State
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
@@ -32,8 +34,10 @@ from .const import (
     SIGNAL_CLIENT_STOPPED,
 )
 
-_NOW_PLAYING_POLL_INTERVAL = 10
+_DEFAULT_POLL_INTERVAL = 10
 _NETWORK_SOURCES = {SourceCodes.NET, SourceCodes.USB, SourceCodes.BT, SourceCodes.NET_USB}
+_IMAGES_PATH = Path(__file__).parent / "images"
+STATIC_URL_PREFIX = "/api/arcam_fmj/images"
 
 
 @dataclass
@@ -118,8 +122,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ArcamFmjConfigEntry) -> 
         artwork=ArtworkLookup(async_get_clientsession(hass)),
     )
 
+    # Register static path for source images
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(STATIC_URL_PREFIX, str(_IMAGES_PATH), cache_headers=True)]
+    )
+
     entry.async_create_background_task(
-        hass, _run_client(hass, entry.runtime_data, DEFAULT_SCAN_INTERVAL), "arcam_fmj"
+        hass, _run_client(hass, entry, DEFAULT_SCAN_INTERVAL), "arcam_fmj"
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -131,10 +140,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def _poll_now_playing(data: ArcamFmjData, hass: HomeAssistant) -> None:
-    """Periodically re-poll now-playing metadata while a network source is active."""
+async def _poll_now_playing(
+    data: ArcamFmjData, hass: HomeAssistant, poll_interval: int
+) -> None:
+    """Periodically re-poll now-playing metadata while a network source is active.
+
+    The Arcam device pushes state changes for standard commands (power, volume,
+    mute, source) via the TCP socket listener.  However, now-playing metadata
+    (title, artist, album) for network sources is NOT pushed by the device,
+    so it must be polled periodically.
+    """
     while True:
-        await asyncio.sleep(_NOW_PLAYING_POLL_INTERVAL)
+        await asyncio.sleep(poll_interval)
         try:
             updated = False
             for state in (data.state_zone1, data.state_zone2):
@@ -149,7 +166,16 @@ async def _poll_now_playing(data: ArcamFmjData, hass: HomeAssistant) -> None:
             _LOGGER.debug("Now playing poll failed", exc_info=True)
 
 
-async def _run_client(hass: HomeAssistant, data: ArcamFmjData, interval: float) -> None:
+async def _run_client(
+    hass: HomeAssistant, entry: ArcamFmjConfigEntry, interval: float
+) -> None:
+    """Maintain persistent connection to the Arcam device.
+
+    All outgoing requests (user commands and polling) are serialized by the
+    library's priority queue with 0.2s throttle and deduplication, so there
+    are no race conditions between concurrent callers.
+    """
+    data: ArcamFmjData = entry.runtime_data
     client = data.client
 
     def _listen(_: Any) -> None:
@@ -178,8 +204,11 @@ async def _run_client(hass: HomeAssistant, data: ArcamFmjData, interval: float) 
 
                     # Poll now-playing metadata periodically alongside
                     # the packet reader so track changes are picked up.
+                    poll_interval = entry.options.get(
+                        "poll_interval", _DEFAULT_POLL_INTERVAL
+                    )
                     poll_task = asyncio.create_task(
-                        _poll_now_playing(data, hass)
+                        _poll_now_playing(data, hass, poll_interval)
                     )
                     try:
                         await process_task

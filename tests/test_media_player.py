@@ -3,7 +3,13 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from arcam.fmj import ConnectionFailed, NowPlayingInfo, SourceCodes, DecodeModeMCH
+from arcam.fmj import (
+    ConnectionFailed,
+    NetworkPlaybackStatus,
+    NowPlayingInfo,
+    SourceCodes,
+    DecodeModeMCH,
+)
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.components.media_player import (
@@ -23,6 +29,18 @@ from .conftest import MOCK_HOST, MOCK_UUID, setup_integration
 
 ENTITY_ZONE1 = "media_player.arcam_av40_zone_1"
 ENTITY_ZONE2 = "media_player.arcam_av40_zone_2"
+
+
+def _get_entity(hass, entity_id):
+    """Get entity object directly from platform."""
+    from homeassistant.helpers import entity_platform
+
+    for platform in entity_platform.async_get_platforms(hass, DOMAIN):
+        if platform.domain == "media_player":
+            for ent in platform.entities.values():
+                if ent.entity_id == entity_id:
+                    return ent
+    return None
 
 
 async def test_setup_entities(
@@ -622,16 +640,16 @@ async def test_media_image_no_companion(
     assert state.attributes.get("entity_picture") is None
 
 
-async def test_media_image_non_network_source(
+async def test_media_image_non_network_source_shows_icon(
     hass: HomeAssistant,
     mock_config_entry,
     mock_setup_entry,
     mock_state_zone1,
 ):
-    """Test no artwork lookup for non-network sources even with companion."""
+    """Test non-network sources show source icon instead of companion artwork."""
     mock_state_zone1.get_source.return_value = SourceCodes.BD
 
-    # Create companion with artwork
+    # Create companion with artwork - should NOT be used for non-network sources
     cast_entry = MockConfigEntry(
         domain="cast",
         data={"host": MOCK_HOST, "port": 8009},
@@ -654,5 +672,148 @@ async def test_media_image_non_network_source(
 
     await setup_integration(hass, mock_config_entry)
 
+    # BD source should show the bd.svg source icon (access via entity, not state proxy)
+    entity = _get_entity(hass, ENTITY_ZONE1)
+    assert entity is not None
+    assert entity.media_image_url == "/api/arcam_fmj/images/bd.svg"
+
+
+# --- Source image tests ---
+
+
+async def test_media_image_url_source_icon_bd(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test BD source returns source icon URL."""
+    mock_state_zone1.get_source.return_value = SourceCodes.BD
+    await setup_integration(hass, mock_config_entry)
+
+    entity = _get_entity(hass, ENTITY_ZONE1)
+    assert entity is not None
+    assert entity.media_image_url == "/api/arcam_fmj/images/bd.svg"
+
+
+async def test_media_image_url_source_icon_game(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test GAME source returns game icon URL."""
+    mock_state_zone1.get_source.return_value = SourceCodes.GAME
+    await setup_integration(hass, mock_config_entry)
+
+    entity = _get_entity(hass, ENTITY_ZONE1)
+    assert entity is not None
+    assert entity.media_image_url == "/api/arcam_fmj/images/game.svg"
+
+
+async def test_media_image_url_source_icon_pvr(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test PVR source returns pvr icon URL."""
+    # Default mock source is PVR
+    await setup_integration(hass, mock_config_entry)
+
+    entity = _get_entity(hass, ENTITY_ZONE1)
+    assert entity is not None
+    assert entity.media_image_url == "/api/arcam_fmj/images/pvr.svg"
+
+
+async def test_media_image_url_network_with_artwork(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test network source with artwork returns artwork URL (not source icon)."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_now_playing_info.return_value = NowPlayingInfo(
+        title="Song", artist="Artist", album="Album"
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    # Simulate artwork lookup completing with a URL
+    with patch(
+        "custom_components.arcam_fmj.media_player.ArtworkLookup.get_album_artwork",
+        new=AsyncMock(return_value="https://itunes.example.com/art.jpg"),
+    ):
+        async_dispatcher_send(hass, SIGNAL_CLIENT_DATA, MOCK_HOST)
+        await hass.async_block_till_done()
+
     state = hass.states.get(ENTITY_ZONE1)
-    assert state.attributes.get("entity_picture") is None
+    assert state.attributes.get("entity_picture") == "https://itunes.example.com/art.jpg"
+
+
+async def test_media_image_remotely_accessible_dynamic(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test media_image_remotely_accessible is dynamic based on source type."""
+    # Non-network source - local icon, not remotely accessible
+    mock_state_zone1.get_source.return_value = SourceCodes.BD
+    await setup_integration(hass, mock_config_entry)
+
+    entity = _get_entity(hass, ENTITY_ZONE1)
+    assert entity is not None
+    assert entity.media_image_remotely_accessible is False
+
+
+# --- Media state tests ---
+
+
+async def test_state_playing_network_source(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test PLAYING state for network source with active playback."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_network_playback_status.return_value = (
+        NetworkPlaybackStatus.PLAYING
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.state == MediaPlayerState.PLAYING
+
+
+async def test_state_paused_network_source(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test PAUSED state for network source with paused playback."""
+    mock_state_zone1.get_source.return_value = SourceCodes.NET
+    mock_state_zone1.get_network_playback_status.return_value = (
+        NetworkPlaybackStatus.PAUSED
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.state == MediaPlayerState.PAUSED
+
+
+async def test_state_on_non_network_source(
+    hass: HomeAssistant,
+    mock_config_entry,
+    mock_setup_entry,
+    mock_state_zone1,
+):
+    """Test non-network source always reports ON when powered."""
+    mock_state_zone1.get_source.return_value = SourceCodes.BD
+    mock_state_zone1.get_network_playback_status.return_value = None
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(ENTITY_ZONE1)
+    assert state.state == MediaPlayerState.ON

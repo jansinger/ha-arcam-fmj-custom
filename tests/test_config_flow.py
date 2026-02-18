@@ -10,6 +10,8 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.arcam_fmj.const import DOMAIN
 
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
 from .conftest import MOCK_HOST, MOCK_PORT, MOCK_UUID
 
 
@@ -164,3 +166,40 @@ async def test_ssdp_flow_no_uuid(hass: HomeAssistant):
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "cannot_connect"
+
+
+# --- Options flow tests ---
+
+
+async def test_options_flow_defaults(hass: HomeAssistant):
+    """Test options flow shows default values."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"host": MOCK_HOST, "port": MOCK_PORT},
+        unique_id=MOCK_UUID,
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+
+async def test_options_flow_custom_values(hass: HomeAssistant):
+    """Test options flow saves custom values."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"host": MOCK_HOST, "port": MOCK_PORT},
+        unique_id=MOCK_UUID,
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={"poll_interval": 30, "zone2_enabled": False},
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == {"poll_interval": 30, "zone2_enabled": False}

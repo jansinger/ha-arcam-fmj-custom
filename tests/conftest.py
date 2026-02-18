@@ -173,8 +173,16 @@ def mock_config_entry(hass):
 
 
 @pytest.fixture
-def mock_setup_entry(mock_client, mock_state_zone1, mock_state_zone2):
+def mock_setup_entry(hass, mock_client, mock_state_zone1, mock_state_zone2):
     """Patch Client and State constructors for integration setup."""
+    # Ensure hass.http exists with async_register_static_paths
+    if not hasattr(hass, "http") or hass.http is None:
+        hass.http = MagicMock()
+    if not hasattr(hass.http, "async_register_static_paths"):
+        hass.http.async_register_static_paths = AsyncMock()
+    else:
+        hass.http.async_register_static_paths = AsyncMock()
+
     with (
         patch(
             "custom_components.arcam_fmj.Client",

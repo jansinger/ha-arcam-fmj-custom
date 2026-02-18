@@ -22,6 +22,17 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "poll_interval": "Now playing poll interval (seconds)",
+          "zone2_enabled": "Enable Zone 2"
+        },
+        "description": "Configure Arcam FMJ integration options."
+      }
+    }
+  },
   "device_automation": {
     "trigger_type": {
       "turn_on": "{entity_name} was requested to turn on"
