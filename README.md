@@ -229,6 +229,11 @@ All Arcam devices with IP control:
 
 ## Changelog
 
+### v3.0.1
+- **Documentation** — Fix entity option counts (Display Brightness: 3 levels, Compression: 3 levels), add Diagnostic category to sensors, split entity tables by type.
+- **CI/CD** — Add GitHub Actions for automatic releases on tag push and HACS/Hassfest validation on push/PR. Add version badge, HACS badge, and "Add to HACS" button.
+- **Manifest** — Add `after_dependencies: ["http"]`, `issue_tracker`, fix key ordering for hassfest compliance.
+
 ### v3.0.0
 - **Source images** — SVG icons for non-streaming sources (AV, BD, CD, SAT, GAME, FM, DAB, etc.) displayed in the media player card. Network sources continue to show album artwork via iTunes.
 - **Options Flow** — Configure poll interval (5–60s) and enable/disable Zone 2 via Settings → Devices & Services → Configure.
