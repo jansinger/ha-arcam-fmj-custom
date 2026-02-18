@@ -1,6 +1,13 @@
 # Arcam FMJ Receivers (Fixed & Extended)
 
+[![GitHub Release](https://img.shields.io/github/v/release/jansinger/ha-arcam-fmj-custom?style=flat-square)](https://github.com/jansinger/ha-arcam-fmj-custom/releases)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.6+-41BDF5?style=flat-square&logo=home-assistant&logoColor=white)](https://www.home-assistant.io/)
+[![License](https://img.shields.io/github/license/jansinger/ha-arcam-fmj-custom?style=flat-square)](LICENSE)
+
 Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and extended IP control features.
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jansinger&repository=ha-arcam-fmj-custom&category=integration)
 
 ## Features
 
@@ -22,35 +29,55 @@ Custom Home Assistant integration for Arcam FMJ receivers with bug fixes and ext
 
 ## Entities
 
-| Entity Type | Name | Default | Category | Description |
-|-------------|------|---------|----------|-------------|
-| Media Player | Zone 1 / Zone 2 | Enabled / Disabled | — | Power, volume, mute, source, sound mode, tuner, now playing, artwork |
-| Number | Bass | Enabled | — | -12 to +12 dB |
-| Number | Treble | Enabled | — | -12 to +12 dB |
-| Number | Balance | Enabled | — | -6 to +6 |
-| Number | Subwoofer Trim | Disabled | Config | -10 to +10 dB (0.5 dB steps) |
-| Number | Lip Sync Delay | Disabled | Config | 0 to 250 ms (5 ms steps) |
-| Select | Display Brightness | Enabled | Config | Off / Level 1 / Level 2 / Level 3 |
-| Select | Room EQ | Enabled | Config | Off / Preset 1 / Preset 2 / Preset 3 (shows device names) |
-| Select | Compression | Disabled | Config | Off / Light / Medium / Heavy |
-| Select | Zone 1 Source | Enabled | — | Input source selection (SAT, HDMI1, BD, etc.) |
-| Select | Zone 2 Source | Disabled | — | Input source selection for Zone 2 |
-| Select | Sound Mode | Enabled | — | Stereo Downmix, Multi Channel, Dolby Surround, etc. |
-| Select | Dolby Audio | Disabled | Config | Off / Movie / Music / Night |
-| Sensor | Audio Input Format | Enabled | — | Dolby Atmos, DTS:X, PCM, etc. |
-| Sensor | Audio Channels | Enabled | — | Channel configuration (e.g. 7.1) |
-| Sensor | Video Resolution | Enabled | — | e.g. 3840x2160 |
-| Sensor | Video Refresh Rate | Disabled | — | e.g. 60 Hz |
-| Sensor | Video Colorspace | Disabled | — | SDR, HDR10, Dolby Vision, etc. |
-| Sensor | Video Scan Mode | Disabled | — | Progressive / Interlaced |
-| Sensor | Audio Sample Rate | Disabled | — | e.g. 48000 Hz |
-| Sensor | Network Playback | Disabled | — | Playback status for network sources |
-| Sensor | Bluetooth Status | Disabled | — | Bluetooth connection state |
-| Sensor | Room EQ Names | Disabled | — | Custom preset names (attributes: eq1, eq2, eq3) |
-| Sensor | HDMI Settings | Disabled | — | CEC, ARC, OSD settings (as attributes) |
-| Sensor | Zone Settings | Disabled | — | Zone 2 input, volume, status (as attributes) |
+### Media Player
 
-> **Entity categories:** Entities marked "Config" appear under the device's configuration section in HA and are hidden from the default entity picker. Primary controls (Bass, Treble, Balance, Sound Mode, Source) have no category and appear in the main UI.
+| Name | Default | Description |
+|------|---------|-------------|
+| Zone 1 | Enabled | Power, volume, mute, source, sound mode, now playing, artwork, source images |
+| Zone 2 | Disabled | Power, volume, mute, source (can be disabled entirely via Options) |
+
+### Controls (Number)
+
+| Name | Default | Category | Range | Description |
+|------|---------|----------|-------|-------------|
+| Bass | Enabled | — | -12 to +12 dB (1 dB) | Bass equalization |
+| Treble | Enabled | — | -12 to +12 dB (1 dB) | Treble equalization |
+| Balance | Enabled | — | -6 to +6 (1) | Left/right balance |
+| Subwoofer Trim | Disabled | Config | -10.0 to +10.0 dB (0.5 dB) | Subwoofer level trim |
+| Lip Sync Delay | Disabled | Config | 0 to 250 ms (5 ms) | Audio delay compensation |
+
+### Controls (Select)
+
+| Name | Default | Category | Options | Description |
+|------|---------|----------|---------|-------------|
+| Display Brightness | Enabled | Config | Off / Level 1 / Level 2 | Front panel display brightness |
+| Room EQ | Enabled | Config | Off / Preset 1 / Preset 2 / Preset 3 | Room correction presets (shows device names) |
+| Compression | Disabled | Config | Off / Light / Medium | Dynamic range compression |
+| Dolby Audio | Disabled | Config | Off / Movie / Music / Night | Dolby audio processing mode |
+| Sound Mode | Enabled | — | Stereo, Dolby Surround, DTS Neural:X, etc. | Decode mode (dynamic, based on input format) |
+| Zone 1 Source | Enabled | — | STB, AV, BD, SAT, GAME, etc. | Input source selection |
+| Zone 2 Source | Disabled | — | STB, AV, BD, SAT, GAME, etc. | Input source for Zone 2 |
+
+### Sensors (Diagnostic)
+
+All sensors have `entity_category: diagnostic`.
+
+| Name | Default | Description |
+|------|---------|-------------|
+| Audio Input Format | Enabled | PCM, Dolby Digital, Dolby Atmos, DTS:X, etc. |
+| Audio Channels | Enabled | Channel configuration (e.g. STEREO_ONLY, 3/2.1) |
+| Video Resolution | Enabled | e.g. 3840x2160, 1920x1080 |
+| Video Refresh Rate | Disabled | e.g. 60 Hz |
+| Video Colorspace | Disabled | SDR, HDR10, Dolby Vision, HLG, etc. |
+| Video Scan Mode | Disabled | Progressive / Interlaced |
+| Audio Sample Rate | Disabled | e.g. 48000 Hz |
+| Network Playback | Disabled | Stopped / Playing / Paused for network sources |
+| Bluetooth Status | Disabled | Bluetooth connection state |
+| Room EQ Names | Disabled | Custom preset names (attributes: eq1, eq2, eq3) |
+| HDMI Settings | Disabled | CEC, ARC, OSD settings (as attributes) |
+| Zone Settings | Disabled | Zone 2 input, volume, status (as attributes) |
+
+> **Entity categories:** Entities marked "Config" appear under the device's configuration section in HA and are hidden from the default entity picker. Primary controls (Bass, Treble, Balance, Sound Mode, Source) have no category and appear in the main UI. All sensors are "Diagnostic" and appear in the diagnostics section.
 
 ## Configuration Options
 
@@ -63,7 +90,9 @@ After adding the integration, you can configure these options via **Settings →
 
 ## Installation via HACS
 
-1. Open HACS in Home Assistant
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jansinger&repository=ha-arcam-fmj-custom&category=integration)
+
+1. Open HACS in Home Assistant (or click the button above)
 2. Click the three dots menu (top right) -> **Custom repositories**
 3. Add: `https://github.com/jansinger/ha-arcam-fmj-custom`
 4. Category: **Integration**
