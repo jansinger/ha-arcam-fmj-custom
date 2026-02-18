@@ -1,6 +1,6 @@
 """Tests for Arcam FMJ media player entity."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from arcam.fmj import ConnectionFailed, NowPlayingInfo, SourceCodes, DecodeModeMCH
@@ -15,8 +15,9 @@ from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from custom_components.arcam_fmj.const import DOMAIN, EVENT_TURN_ON
+from custom_components.arcam_fmj.const import DOMAIN, EVENT_TURN_ON, SIGNAL_CLIENT_DATA
 
 from .conftest import MOCK_HOST, MOCK_UUID, setup_integration
 
@@ -592,6 +593,15 @@ async def test_media_image_from_companion_cast(
     })
 
     await setup_integration(hass, mock_config_entry)
+
+    # Mock iTunes lookup to return None so companion fallback kicks in,
+    # then fire SIGNAL_CLIENT_DATA to trigger artwork lookup.
+    with patch(
+        "custom_components.arcam_fmj.media_player.ArtworkLookup.get_podcast_artwork",
+        new=AsyncMock(return_value=None),
+    ):
+        async_dispatcher_send(hass, SIGNAL_CLIENT_DATA, MOCK_HOST)
+        await hass.async_block_till_done()
 
     state = hass.states.get(ENTITY_ZONE1)
     assert state.attributes.get("entity_picture") == "https://cdn.example.com/artwork.jpg"

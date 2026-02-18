@@ -54,7 +54,7 @@ async def test_display_brightness_options(
 
     state = hass.states.get(ENTITY_BRIGHTNESS)
     options = state.attributes["options"]
-    assert options == ["Off", "Level 1", "Level 2", "Level 3"]
+    assert options == ["Off", "Level 1", "Level 2"]
 
 
 async def test_set_display_brightness(
@@ -69,12 +69,12 @@ async def test_set_display_brightness(
     await hass.services.async_call(
         "select",
         "select_option",
-        {ATTR_ENTITY_ID: ENTITY_BRIGHTNESS, "option": "Level 3"},
+        {ATTR_ENTITY_ID: ENTITY_BRIGHTNESS, "option": "Level 2"},
         blocking=True,
     )
 
-    # "Level 3" maps to raw value 3
-    mock_state_zone1.set_display_brightness.assert_called_once_with(3)
+    # "Level 2" maps to raw value 2
+    mock_state_zone1.set_display_brightness.assert_called_once_with(2)
 
 
 async def test_set_display_brightness_off(
@@ -137,7 +137,7 @@ async def test_select_connection_error(
         await hass.services.async_call(
             "select",
             "select_option",
-            {ATTR_ENTITY_ID: ENTITY_BRIGHTNESS, "option": "Level 3"},
+            {ATTR_ENTITY_ID: ENTITY_BRIGHTNESS, "option": "Level 2"},
             blocking=True,
         )
 
