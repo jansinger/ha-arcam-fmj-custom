@@ -1,7 +1,6 @@
 {
   "domain": "arcam_fmj",
   "name": "Arcam FMJ Receivers (Fixed)",
-  "version": "3.0.0",
   "after_dependencies": ["http"],
   "codeowners": ["@jansinger"],
   "config_flow": true,
@@ -16,5 +15,6 @@
       "deviceType": "urn:schemas-upnp-org:device:MediaRenderer:1",
       "manufacturer": "ARCAM"
     }
-  ]
+  ],
+  "version": "3.0.0"
 }
