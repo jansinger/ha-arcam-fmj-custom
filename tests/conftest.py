@@ -12,6 +12,26 @@ MOCK_PORT = 50000
 MOCK_UUID = "test-uuid-1234"
 
 
+def pytest_addoption(parser):
+    """Add --device and --device-port options for live device testing."""
+    parser.addoption("--device", default=None, help="Arcam device host for live tests")
+    parser.addoption(
+        "--device-port", default=50000, type=int, help="Arcam device port (default 50000)"
+    )
+
+
+@pytest.fixture(scope="session")
+def device_host(request):
+    """Return the --device host or None."""
+    return request.config.getoption("--device")
+
+
+@pytest.fixture(scope="session")
+def device_port(request):
+    """Return the --device-port value."""
+    return request.config.getoption("--device-port")
+
+
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Enable loading custom integrations in all tests."""
