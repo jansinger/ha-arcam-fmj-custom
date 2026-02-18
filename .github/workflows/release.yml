@@ -31,10 +31,16 @@ jobs:
       - name: Extract changelog for this version
         id: changelog
         run: |
-          # Extract the changelog section for this version
           version="${{ steps.version.outputs.version }}"
-          # Get content between this version header and the next version header
-          awk "/^### v${version}$/,/^### v[0-9]/" README.md | head -n -1 | tail -n +2 > /tmp/changelog.md
+          # Extract lines between "### vX.Y.Z" and the next "### v" header
+          python3 -c "
+          import re, sys
+          text = open('README.md').read()
+          pattern = r'### v${version}\n(.*?)(?=\n### v|\n## |\Z)'
+          m = re.search(pattern, text, re.DOTALL)
+          if m:
+              print(m.group(1).strip())
+          " > /tmp/changelog.md
           echo "body<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
           cat /tmp/changelog.md >> "$GITHUB_OUTPUT"
           echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
