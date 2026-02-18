@@ -2,6 +2,7 @@
 
 import asyncio
 from asyncio import timeout
+import contextlib
 from dataclasses import dataclass
 import logging
 from typing import Any
@@ -10,6 +11,7 @@ from arcam.fmj import (
     AmxDuetRequest,
     ApiModel,
     ConnectionFailed,
+    SourceCodes,
     detect_api_model,
 )
 from arcam.fmj.client import Client
@@ -29,6 +31,9 @@ from .const import (
     SIGNAL_CLIENT_STARTED,
     SIGNAL_CLIENT_STOPPED,
 )
+
+_NOW_PLAYING_POLL_INTERVAL = 10
+_NETWORK_SOURCES = {SourceCodes.NET, SourceCodes.USB, SourceCodes.BT, SourceCodes.NET_USB}
 
 
 @dataclass
@@ -126,6 +131,24 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
+async def _poll_now_playing(data: ArcamFmjData, hass: HomeAssistant) -> None:
+    """Periodically re-poll now-playing metadata while a network source is active."""
+    while True:
+        await asyncio.sleep(_NOW_PLAYING_POLL_INTERVAL)
+        try:
+            updated = False
+            for state in (data.state_zone1, data.state_zone2):
+                if state.get_power() and state.get_source() in _NETWORK_SOURCES:
+                    await state.update_now_playing()
+                    updated = True
+            if updated:
+                async_dispatcher_send(hass, SIGNAL_CLIENT_DATA, data.client.host)
+        except ConnectionFailed:
+            return
+        except Exception:
+            _LOGGER.debug("Now playing poll failed", exc_info=True)
+
+
 async def _run_client(hass: HomeAssistant, data: ArcamFmjData, interval: float) -> None:
     client = data.client
 
@@ -153,7 +176,17 @@ async def _run_client(hass: HomeAssistant, data: ArcamFmjData, interval: float) 
 
                     async_dispatcher_send(hass, SIGNAL_CLIENT_STARTED, client.host)
 
-                    await process_task
+                    # Poll now-playing metadata periodically alongside
+                    # the packet reader so track changes are picked up.
+                    poll_task = asyncio.create_task(
+                        _poll_now_playing(data, hass)
+                    )
+                    try:
+                        await process_task
+                    finally:
+                        poll_task.cancel()
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await poll_task
             finally:
                 await client.stop()
 
