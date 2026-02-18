@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 import logging
@@ -186,4 +187,7 @@ class ArcamNumberEntity(ArcamFmjEntity, NumberEntity):
             raise HomeAssistantError(
                 f"Connection failed during {self.entity_description.key}"
             ) from exception
+        except asyncio.CancelledError:
+            _LOGGER.debug("Command %s superseded by newer value", self.entity_description.key)
+            return
         self.async_write_ha_state()

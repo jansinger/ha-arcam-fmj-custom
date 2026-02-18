@@ -87,6 +87,6 @@ class ArcamFmjEntity(Entity):
     async def async_update(self) -> None:
         """Force update of state."""
         try:
-            await self._state.update()
+            await self._state.update(skip_known=True)
         except ConnectionFailed:
             _LOGGER.debug("Connection lost during update for %s", self.entity_id)

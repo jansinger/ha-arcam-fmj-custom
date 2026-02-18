@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Coroutine
 import functools
 import logging
@@ -67,6 +68,8 @@ def convert_exception[**_P, _R](
             raise HomeAssistantError(
                 f"Connection failed to device during {func.__name__}"
             ) from exception
+        except asyncio.CancelledError:
+            _LOGGER.debug("Command %s superseded by newer value", func.__name__)
 
     return _convert_exception
 

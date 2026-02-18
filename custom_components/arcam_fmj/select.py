@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 import logging
@@ -156,6 +157,9 @@ class ArcamSelectEntity(ArcamFmjEntity, SelectEntity):
             raise HomeAssistantError(
                 f"Connection failed during {self.entity_description.key}"
             ) from exception
+        except asyncio.CancelledError:
+            _LOGGER.debug("Command %s superseded by newer value", self.entity_description.key)
+            return
         self.async_write_ha_state()
 
 
@@ -230,6 +234,9 @@ class ArcamRoomEqSelectEntity(ArcamFmjEntity, SelectEntity):
             raise HomeAssistantError(
                 "Connection failed during room_eq"
             ) from exception
+        except asyncio.CancelledError:
+            _LOGGER.debug("Command room_eq superseded by newer value")
+            return
         self.async_write_ha_state()
 
 
@@ -291,6 +298,9 @@ class ArcamSoundModeSelectEntity(ArcamFmjEntity, SelectEntity):
             raise HomeAssistantError(
                 "Connection failed during sound_mode"
             ) from exception
+        except asyncio.CancelledError:
+            _LOGGER.debug("Command sound_mode superseded by newer value")
+            return
         self.async_write_ha_state()
 
 
@@ -333,4 +343,7 @@ class ArcamSourceSelectEntity(ArcamFmjEntity, SelectEntity):
             raise HomeAssistantError(
                 "Connection failed during source selection"
             ) from exception
+        except asyncio.CancelledError:
+            _LOGGER.debug("Command source superseded by newer value")
+            return
         self.async_write_ha_state()
